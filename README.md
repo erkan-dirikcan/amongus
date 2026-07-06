@@ -91,11 +91,12 @@ docker compose down -v       # veritabanı datasını da siler
 
 ## Status
 
-✅ **Sub-project 1 tamamlandı:** Temel Kurulum + Auth
-- Monorepo yapısı (npm workspaces)
-- Docker Compose ile tek komut deploy
-- Kullanıcı kayıt/giriş (JWT + bcrypt + HttpOnly cookie)
-- PostgreSQL + Prisma ORM
-- Tam test coverage (password, JWT, route integration)
+✅ **Sub-project 1:** Temel Kurulum + Auth
+✅ **Sub-project 2:** Lobi Sistemi (Socket.io ile oda yönetimi)
+- Oda oluşturma, kod ile katılma
+- Renk seçimi, hazır durumu
+- Host yönetimi (otomatik transfer)
+- Login + Menu + Lobby ekranları
+- Realtime senkronizasyon
 
-🚧 Sonraki: Sub-project 2 — Lobi Sistemi (Socket.io ile oda yönetimi)
+🚧 **Sonraki:** Sub-project 3 — Oyun Çekirdeği (hareket, harita, roller)
