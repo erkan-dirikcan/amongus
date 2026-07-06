@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { env } from "./config/env.js";
 import { createAuthRouter } from "./auth/routes.js";
 import { errorHandler, notFound } from "./middleware/error.js";
@@ -27,6 +29,19 @@ export function createApp(): express.Application {
 
   // Auth routes
   app.use("/api/auth", createAuthRouter());
+
+  // Serve client in production
+  if (env.isProd) {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const clientDist = path.resolve(__dirname, "../../client/dist");
+    app.use(express.static(clientDist));
+    // SPA fallback: non-API routes return index.html
+    app.get("*", (req, res) => {
+      if (!req.path.startsWith("/api") && !req.path.startsWith("/socket.io")) {
+        res.sendFile(path.join(clientDist, "index.html"));
+      }
+    });
+  }
 
   // 404 + error handling (last)
   app.use(notFound);

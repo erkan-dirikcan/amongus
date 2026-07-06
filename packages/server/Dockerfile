@@ -23,6 +23,17 @@ RUN npm run db:generate --workspace @amongus/server
 # Build server
 RUN npm run build --workspace @amongus/server
 
+# --- Client build stage ---
+FROM node:24-alpine AS client-builder
+WORKDIR /app
+COPY package.json package-lock.json* ./
+COPY packages/client/package.json ./packages/client/
+COPY packages/shared/package.json ./packages/shared/
+RUN npm install
+COPY packages/client ./packages/client
+COPY packages/shared ./packages/shared
+RUN npm run build --workspace @amongus/client
+
 # --- Production stage ---
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -43,6 +54,7 @@ COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
 COPY --from=builder /app/packages/shared/src ./packages/shared/src
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=client-builder /app/packages/client/dist ./packages/client/dist
 
 EXPOSE 3000
 
