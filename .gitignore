@@ -27,3 +27,8 @@ coverage/
 # Prisma
 packages/server/prisma/migrations/dev.db
 *.db-journal
+
+# Local secrets / DB connection info
+pginfo.txt
+packages/server/scripts/
+packages/server/.env
