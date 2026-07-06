@@ -34,6 +34,16 @@ export interface GamePlayer {
   killCooldownUntil: number;
 }
 
+export interface MeetingState {
+  matchId: string;
+  reason: "report" | "emergency";
+  reporterId: string;
+  victimId?: string;
+  startedAt: number;
+  durationMs: number;
+  votes: Map<string, string | "skip">;
+}
+
 export interface GameState {
   matchId: string;
   code: string;
@@ -44,4 +54,6 @@ export interface GameState {
   tasks: Map<string, Task>;
   taskProgress: { total: number; completed: number };
   corpses: Corpse[];
+  meetingState: MeetingState | null;
+  emergencyUsed: Set<string>;
 }

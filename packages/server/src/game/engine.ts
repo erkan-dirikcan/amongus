@@ -79,6 +79,8 @@ export class GameEngine {
       tasks,
       taskProgress: { total: tasks.size, completed: 0 },
       corpses: [],
+      meetingState: null,
+      emergencyUsed: new Set(),
     });
   }
 
