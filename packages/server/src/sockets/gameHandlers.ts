@@ -1,6 +1,6 @@
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
 import type { GameEngine } from "../game/engine.js";
-import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS } from "@amongus/shared";
+import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS, VENT_SABOTAGE_EVENTS } from "@amongus/shared";
 import { prisma } from "../db/prisma.js";
 
 export function registerGameHandlers(
@@ -128,6 +128,86 @@ export function registerGameHandlers(
       username: player.username,
       message,
     });
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.VENT_ENTER, (payload: unknown) => {
+    if (typeof payload !== "object" || payload === null || typeof (payload as any).ventId !== "string") return;
+    const { ventId } = payload as { ventId: string };
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.ventEnter(match.matchId, user.userId, ventId);
+    if (result.success) {
+      socket.emit(VENT_SABOTAGE_EVENTS.VENT_STATE, { inVent: true, ventId, availableVents: result.vents });
+    }
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.VENT_MOVE, (payload: unknown) => {
+    if (typeof payload !== "object" || payload === null || typeof (payload as any).targetVentId !== "string") return;
+    const { targetVentId } = payload as { targetVentId: string };
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    engine.ventMove(match.matchId, user.userId, targetVentId);
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.VENT_EXIT, () => {
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.ventExit(match.matchId, user.userId);
+    if (result.success) {
+      socket.emit(VENT_SABOTAGE_EVENTS.VENT_STATE, { inVent: false });
+    }
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.SABOTAGE, (payload: unknown) => {
+    if (typeof payload !== "object" || payload === null) return;
+    const type = (payload as any).type;
+    if (!["lights", "comms", "reactor", "o2"].includes(type)) return;
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.startSabotage(match.matchId, user.userId, type);
+    if (result.success) {
+      io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_STARTED, { type, expiresAt: result.expiresAt });
+    }
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.REPAIR_LIGHTS, () => {
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.repairLights(match.matchId, user.userId);
+    if (result.success) {
+      io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_FIXED, { type: "lights" });
+    }
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.REPAIR_COMMS, (payload: unknown) => {
+    const code = (payload as any)?.code;
+    if (typeof code !== "string") return;
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.repairComms(match.matchId, user.userId, code);
+    if (result.success) {
+      io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_FIXED, { type: "comms" });
+    }
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.REACTOR_HOLD, () => {
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.reactorHold(match.matchId, user.userId);
+    if (result.success && result.complete) {
+      io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_FIXED, { type: "reactor" });
+    }
+  });
+
+  socket.on(VENT_SABOTAGE_EVENTS.O2_CODE, (payload: unknown) => {
+    const p = payload as any;
+    if (!p || typeof p.code !== "string" || typeof p.location !== "string") return;
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.o2Code(match.matchId, user.userId, p.code, p.location);
+    if (result.success && result.complete) {
+      io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_FIXED, { type: "o2" });
+    }
   });
 
   // Helper: emit meetingStarted payload to all clients in the match room.
