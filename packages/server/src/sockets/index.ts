@@ -1,11 +1,11 @@
 import { Server as SocketIOServer } from "socket.io";
 import type { Server as HTTPServer } from "node:http";
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
-import { AUTH_COOKIE_NAME, GAME_EVENTS } from "@amongus/shared";
+import { AUTH_COOKIE_NAME, GAME_EVENTS, MEETING_EVENTS } from "@amongus/shared";
 import { verifyToken } from "../auth/jwt.js";
 import type { LobbyManager } from "../lobby/manager.js";
 import { registerLobbyHandlers } from "./lobbyHandlers.js";
-import { registerGameHandlers } from "./gameHandlers.js";
+import { registerGameHandlers, handleGameEnd } from "./gameHandlers.js";
 import { GameEngine } from "../game/engine.js";
 import cookieParser from "cookie-parser";
 
@@ -77,6 +77,29 @@ export function setupSocketServer(
   const TICK_MS = 50;
   setInterval(() => {
     for (const matchId of gameEngine.getActiveMatchIds()) {
+      // Check meeting end BEFORE normal tick — if meeting just ended, emit and skip tick.
+      if (gameEngine.shouldEndMeeting(matchId)) {
+        const result = gameEngine.endMeeting(matchId);
+        if (result) {
+          const match = gameEngine.getMatch(matchId);
+          if (match) {
+            // Note: endMeeting already cleared meetingState; votes reconstructed as empty record here.
+            const votes: Record<string, string | "skip"> = {};
+            io.to(match.code).emit(MEETING_EVENTS.MEETING_ENDED, {
+              ejectedId: result.ejectedId,
+              ejectedRole: result.ejectedRole,
+              wasTie: result.wasTie,
+              votes,
+            });
+            const winner = gameEngine.checkWin(matchId);
+            if (winner) {
+              handleGameEnd(io, gameEngine, matchId, winner);
+            }
+          }
+        }
+        continue; // skip tick during meeting transition
+      }
+      // Normal tick
       const payload = gameEngine.tick(matchId);
       const match = gameEngine.getMatch(matchId);
       if (match) {

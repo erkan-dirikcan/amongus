@@ -1,6 +1,6 @@
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
 import type { GameEngine } from "../game/engine.js";
-import { TASK_EVENTS, GAME_EVENTS } from "@amongus/shared";
+import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS } from "@amongus/shared";
 import { prisma } from "../db/prisma.js";
 
 export function registerGameHandlers(
@@ -89,11 +89,75 @@ export function registerGameHandlers(
     const match = engine.findMatchByUser(user.userId);
     if (!match) return;
     const result = engine.report(match.matchId, user.userId, corpseId);
+    if (result.success && result.meetingStarted) {
+      emitMeetingStarted(io, match.matchId, "report", user.userId);
+    }
     socket.emit(TASK_EVENTS.REPORT_RESULT, result);
   });
+
+  socket.on(MEETING_EVENTS.VOTE, (payload: unknown) => {
+    if (typeof payload !== "object" || payload === null) return;
+    const target = (payload as any).targetId;
+    if (typeof target !== "string") return;
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.vote(match.matchId, user.userId, target);
+    if (result.success) {
+      io.to(match.code).emit(MEETING_EVENTS.VOTE_UPDATE, { voted: engine.getMeetingVotes(match.matchId) });
+    }
+  });
+
+  socket.on(MEETING_EVENTS.EMERGENCY, () => {
+    const match = engine.findMatchByUser(user.userId);
+    if (!match || !engine.canUseEmergency(match.matchId, user.userId)) return;
+    engine.useEmergency(match.matchId, user.userId);
+    engine.startMeeting(match.matchId, "emergency", user.userId);
+    emitMeetingStarted(io, match.matchId, "emergency", user.userId);
+  });
+
+  socket.on(MEETING_EVENTS.SEND_CHAT, (payload: unknown) => {
+    if (typeof payload !== "object" || payload === null) return;
+    const message = (payload as any).message;
+    if (typeof message !== "string" || message.length === 0 || message.length > 200) return;
+    const match = engine.findMatchByUser(user.userId);
+    if (!match || !engine.isInMeeting(match.matchId)) return;
+    const player = match.players.get(user.userId);
+    if (!player || !player.isAlive) return;
+    io.to(match.code).emit(MEETING_EVENTS.CHAT_MESSAGE, {
+      userId: user.userId,
+      username: player.username,
+      message,
+    });
+  });
+
+  // Helper: emit meetingStarted payload to all clients in the match room.
+  // Defined as a closure inside registerGameHandlers so it has access to `engine`.
+  function emitMeetingStarted(
+    io: ExtendedIo,
+    matchId: string,
+    reason: "report" | "emergency",
+    reporterId: string
+  ): void {
+    const match = engine.getMatch(matchId);
+    if (!match) return;
+    const payload = {
+      reason,
+      reporterId,
+      reporterName: match.players.get(reporterId)?.username || "",
+      duration: match.meetingState?.durationMs || 90000,
+      players: [...match.players.values()].map((p) => ({
+        userId: p.userId,
+        username: p.username,
+        color: p.color,
+        isAlive: p.isAlive,
+      })),
+      victimId: match.meetingState?.victimId,
+    };
+    io.to(match.code).emit(MEETING_EVENTS.MEETING_STARTED, payload);
+  }
 }
 
-async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId: string, winner: "CREW" | "IMPOSTOR"): Promise<void> {
+export async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId: string, winner: "CREW" | "IMPOSTOR"): Promise<void> {
   const match = engine.getMatch(matchId);
   if (!match) return;
   match.status = "ENDED";
