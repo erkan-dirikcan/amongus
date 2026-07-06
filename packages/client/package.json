@@ -1,0 +1,14 @@
+{
+  "name": "@amongus/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/main.ts",
+  "scripts": {
+    "dev": "echo \"Client dev server comes in Sub-project 2\" && exit 0",
+    "build": "echo \"Client build comes in Sub-project 2\" && exit 0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
