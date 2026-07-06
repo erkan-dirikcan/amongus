@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Among Us Clone</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <section id="login-screen" class="screen">
+        <div class="card">
+          <h1>🚀 AMONG US</h1>
+          <input id="login-username" type="text" placeholder="Kullanıcı adı" maxlength="20" />
+          <input id="login-password" type="password" placeholder="Şifre" />
+          <div class="button-row">
+            <button id="btn-login">Giriş Yap</button>
+            <button id="btn-register" class="secondary">Kayıt Ol</button>
+          </div>
+          <p id="login-error" class="error"></p>
+        </div>
+      </section>
+
+      <section id="menu-screen" class="screen" hidden>
+        <div class="card">
+          <div class="menu-header">
+            <h2>Merhaba, <span id="menu-username"></span>!</h2>
+            <button id="btn-logout" class="link">Çıkış</button>
+          </div>
+          <div class="menu-actions">
+            <div class="action-box">
+              <h3>ODA OLUŞTUR</h3>
+              <input id="create-password" type="password" placeholder="Şifre (opsiyonel)" />
+              <button id="btn-create">Yeni Oda</button>
+            </div>
+            <div class="action-box">
+              <h3>KOD İLE KATIL</h3>
+              <input id="join-code" type="text" placeholder="A4KQ9Z" maxlength="6" />
+              <input id="join-password" type="password" placeholder="Şifre (opsiyonel)" />
+              <button id="btn-join">Katıl</button>
+            </div>
+          </div>
+          <p id="menu-error" class="error"></p>
+        </div>
+      </section>
+
+      <section id="lobby-screen" class="screen" hidden>
+        <div class="card lobby">
+          <div class="lobby-header">
+            <h2>Oda: <span id="lobby-code"></span></h2>
+            <button id="btn-copy-code" class="link">Kopyala</button>
+          </div>
+          <div id="players-list" class="players-list"></div>
+          <div class="color-picker">
+            <h3>Renk:</h3>
+            <div id="color-buttons"></div>
+          </div>
+          <div class="lobby-actions">
+            <button id="btn-ready">Hazır Değil</button>
+            <button id="btn-leave" class="secondary">Çıkış</button>
+            <button id="btn-start" class="primary" hidden>BAŞLAT</button>
+          </div>
+          <p id="lobby-error" class="error"></p>
+        </div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

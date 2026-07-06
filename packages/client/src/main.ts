@@ -1,2 +1,2 @@
-// Placeholder — Phaser + Vite setup comes in Sub-project 2
-console.log("amongus client — placeholder (Sub-project 2 will build the UI)");
+// Entry point — full app logic added in Task 8
+console.log("amongus client ready (Task 8 will add screens)");
