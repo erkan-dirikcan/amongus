@@ -83,6 +83,16 @@
             <div id="minigame-content"></div>
           </div>
         </div>
+        <div id="task-progress" class="task-progress" hidden>
+          Görevler: <span id="task-completed">0</span>/<span id="task-total">0</span>
+        </div>
+        <button id="kill-btn" class="kill-btn" hidden>🔪</button>
+        <button id="report-btn" class="report-btn" hidden>📢</button>
+        <div id="interact-prompt" class="interact-prompt" hidden>E bas</div>
+        <div id="game-over" class="game-over" hidden>
+          <h1 id="winner-text"></h1>
+          <button id="back-to-lobby">Lobiye Dön</button>
+        </div>
       </section>
     </div>
     <script type="module" src="/src/main.ts"></script>

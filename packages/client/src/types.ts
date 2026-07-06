@@ -48,3 +48,19 @@ export interface TickPlayer {
 export interface GameTickPayload {
   players: TickPlayer[];
 }
+
+export interface TaskClient {
+  id: string;
+  type: "wire" | "download";
+  room: string;
+  x: number;
+  y: number;
+  completed: boolean;
+}
+
+export interface CorpseClient {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+}
