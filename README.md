@@ -101,4 +101,7 @@ docker compose down -v       # veritabanı datasını da siler
 - İki kazanma koşulu (görevler / sayı eşitlenir)
 - Oyun bitişi ekranı
 
-🚧 **Sonraki:** Sub-project 4B — Meeting & Voting (tam oynanabilir)
+✅ **Sub-project 4B:** Meeting & Voting (tam oynanabilir!)
+- Emergency button + ceset raporu → meeting
+- Chat, oylama, atılma
+- Kazanma koşulları tam çalışır
