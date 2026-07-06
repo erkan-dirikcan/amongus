@@ -277,3 +277,31 @@ button.link {
 .game-over h1 { font-size: 3rem; margin-bottom: 24px; }
 .game-over .crew-win { color: #06d6a0; }
 .game-over .impostor-win { color: #ef476f; }
+
+/* Meeting */
+.meeting { max-width: 500px; }
+.meeting-card {
+  background: rgba(255,255,255,0.05); border: 2px solid #ffd166;
+  border-radius: 16px; padding: 24px;
+}
+.meeting-card h2 { color: #ffd166; text-align: center; margin-bottom: 8px; }
+#meeting-timer { text-align: center; color: #06d6a0; margin-bottom: 16px; }
+.meeting-chat {
+  height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3);
+  border-radius: 8px; padding: 12px; margin-bottom: 16px;
+}
+.chat-msg { margin-bottom: 6px; }
+.chat-msg .chat-user { font-weight: bold; }
+.vote-buttons { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.vote-btn {
+  display: flex; align-items: center; gap: 12px; padding: 10px;
+  background: rgba(0,0,0,0.3); border: 2px solid transparent; border-radius: 8px;
+  cursor: pointer; color: #fff; width: 100%; text-align: left;
+}
+.vote-btn:hover { border-color: #ffd166; }
+.vote-btn.selected { border-color: #06d6a0; background: rgba(6,214,160,0.2); }
+.vote-btn .vote-dot { width: 20px; height: 20px; border-radius: 50%; }
+.vote-btn .voted-mark { margin-left: auto; color: #06d6a0; }
+.chat-input-row { display: flex; gap: 8px; }
+.chat-input-row input { flex: 1; }
+.chat-input-row button { width: auto; padding: 12px 20px; }

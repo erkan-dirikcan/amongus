@@ -94,6 +94,19 @@
           <button id="back-to-lobby">Lobiye Dön</button>
         </div>
       </section>
+
+      <section id="meeting-screen" class="screen meeting" hidden>
+        <div class="meeting-card">
+          <h2 id="meeting-title">📢 MEETING</h2>
+          <p id="meeting-timer">⏱️ 90 saniye</p>
+          <div id="meeting-chat" class="meeting-chat"></div>
+          <div id="vote-buttons" class="vote-buttons"></div>
+          <div class="chat-input-row">
+            <input id="chat-input" type="text" placeholder="Mesaj yaz..." maxlength="200" />
+            <button id="chat-send">Gönder</button>
+          </div>
+        </div>
+      </section>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

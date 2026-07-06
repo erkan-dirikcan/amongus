@@ -64,3 +64,10 @@ export interface CorpseClient {
   y: number;
   color: string;
 }
+
+export interface MeetingPlayerInfo {
+  userId: string;
+  username: string;
+  color: string;
+  isAlive: boolean;
+}
