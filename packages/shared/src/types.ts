@@ -118,3 +118,72 @@ export const GAME_EVENTS = {
   TICK: "game:tick",
   ENDED: "game:ended",
 } as const;
+
+// ─── Task & Kill types ─────────────────────────────────────────────────
+
+export type TaskType = "wire" | "download";
+
+export interface TaskClient {
+  id: string;
+  type: TaskType;
+  room: string;
+  x: number;
+  y: number;
+  completed: boolean;
+}
+
+export interface TasksAssignedPayload {
+  tasks: TaskClient[];
+  total: number;
+}
+
+export interface TaskUpdatePayload {
+  completed: number;
+  total: number;
+}
+
+export interface PlayerKilledPayload {
+  victimId: string;
+  x: number;
+  y: number;
+}
+
+export interface KillResultPayload {
+  success: boolean;
+  cooldownUntil: number;
+  message?: string;
+}
+
+export interface CorpseClient {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
+export interface CorpseAddedPayload {
+  corpseId: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
+export interface ReportResultPayload {
+  success: boolean;
+  message: string;
+}
+
+// NOTE: GameEndedPayload is intentionally NOT re-declared here — it already
+// exists above in the Game types section (winner: "CREW" | "IMPOSTOR").
+
+export const TASK_EVENTS = {
+  TASK_COMPLETE: "game:taskComplete",
+  TASKS_ASSIGNED: "game:tasksAssigned",
+  TASK_UPDATE: "game:taskUpdate",
+  KILL: "game:kill",
+  PLAYER_KILLED: "game:playerKilled",
+  KILL_RESULT: "game:killResult",
+  CORPSE_ADDED: "game:corpseAdded",
+  REPORT: "game:report",
+  REPORT_RESULT: "game:reportResult",
+} as const;

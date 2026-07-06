@@ -53,3 +53,11 @@ export function getImpostorCount(playerCount: number): number {
   if (playerCount <= 7) return 2;
   return Math.min(3, Math.floor(playerCount / 3));
 }
+
+// ─── Kill & Task constants ─────────────────────────────────────────────
+
+export const KILL_COOLDOWN_MS = 30000;      // 30 seconds
+export const KILL_DISTANCE = 1.5;           // tiles
+export const TASK_INTERACT_DISTANCE = 1.5;  // tiles
+export const TASKS_PER_CREWMATE = 2;
+export const TASK_TYPES = ["wire", "download"] as const;
