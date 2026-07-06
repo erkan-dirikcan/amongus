@@ -37,6 +37,9 @@ export class GameScene extends Phaser.Scene {
   private killBtn: HTMLButtonElement | null = null;
   private reportBtn: HTMLButtonElement | null = null;
   private interactPrompt: HTMLElement | null = null;
+  private sabotageBtn: HTMLButtonElement | null = null;
+  private ventMenu: HTMLElement | null = null;
+  private lightsActive = false;
 
   constructor() {
     super({ key: "GameScene" });
@@ -137,6 +140,34 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener("game:killResult", this.onKillResult);
     window.addEventListener("game:reportResult", this.onReportResult);
     window.addEventListener("game:taskCompleted", this.onTaskCompleted);
+
+    // Sabotage button (impostor only)
+    this.sabotageBtn = document.getElementById("sabotage-btn") as HTMLButtonElement;
+    if (this.myRole === "IMPOSTOR") {
+      this.sabotageBtn.hidden = false;
+      this.sabotageBtn.addEventListener("click", () => {
+        const menu = document.getElementById("sabotage-menu")!;
+        menu.hidden = !menu.hidden;
+      });
+      document.querySelectorAll("[data-sab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const type = (btn as HTMLElement).dataset.sab!;
+          getSocket().emit("game:sabotage", { type });
+          document.getElementById("sabotage-menu")!.hidden = true;
+        });
+      });
+    }
+
+    // Vent menu + exit
+    this.ventMenu = document.getElementById("vent-menu");
+    document.getElementById("vent-exit-btn")!.addEventListener("click", () => {
+      getSocket().emit("game:ventExit");
+    });
+
+    // Vent/sabotage event listeners
+    window.addEventListener("game:ventState", this.onVentState);
+    window.addEventListener("game:sabotageStarted", this.onSabotageStarted);
+    window.addEventListener("game:sabotageFixed", this.onSabotageFixed);
   }
 
   private createAnimations(): void {
@@ -359,15 +390,71 @@ export class GameScene extends Phaser.Scene {
     if (task) task.completed = true;
   };
 
+  private onVentState = (e: Event): void => {
+    const detail = (e as CustomEvent).detail as { inVent: boolean; ventId?: string; availableVents?: any[] };
+    const menu = document.getElementById("vent-menu")!;
+    if (detail.inVent) {
+      menu.hidden = false;
+      const list = document.getElementById("vent-list")!;
+      list.innerHTML = "";
+      for (const v of detail.availableVents || []) {
+        const btn = document.createElement("button");
+        btn.textContent = v.room;
+        btn.addEventListener("click", () => {
+          getSocket().emit("game:ventMove", { targetVentId: v.id });
+        });
+        list.appendChild(btn);
+      }
+    } else {
+      menu.hidden = true;
+    }
+  };
+
+  private onSabotageStarted = (e: Event): void => {
+    const detail = (e as CustomEvent).detail as { type: string; expiresAt?: number };
+    const alert = document.getElementById("sabotage-alert")!;
+    const messages: Record<string, string> = {
+      lights: "💡 IŞIKLAR KESİLDİ",
+      comms: "📡 İLETİŞİM KESİLDİ",
+      reactor: "☢️ REAKTÖR ERİYOR!",
+      o2: "🫧 O2 SİLİNDİRİ!",
+    };
+    alert.textContent = messages[detail.type] || "SABOTAGE!";
+    alert.hidden = false;
+    if (detail.type === "lights") {
+      this.lightsActive = true;
+      this.cameras.main.setZoom(1); // reduce view
+    }
+  };
+
+  private onSabotageFixed = (e: Event): void => {
+    const detail = (e as CustomEvent).detail as { type: string };
+    const alert = document.getElementById("sabotage-alert")!;
+    alert.hidden = true;
+    if (detail.type === "lights") {
+      this.lightsActive = false;
+      this.cameras.main.setZoom(2); // restore view
+    }
+  };
+
   shutdown(): void {
     window.removeEventListener("game:corpse", this.onCorpseEvent);
     window.removeEventListener("game:killResult", this.onKillResult);
     window.removeEventListener("game:reportResult", this.onReportResult);
     window.removeEventListener("game:taskCompleted", this.onTaskCompleted);
+    window.removeEventListener("game:ventState", this.onVentState);
+    window.removeEventListener("game:sabotageStarted", this.onSabotageStarted);
+    window.removeEventListener("game:sabotageFixed", this.onSabotageFixed);
     if (this.killBtn) this.killBtn.hidden = true;
     if (this.reportBtn) this.reportBtn.hidden = true;
     if (this.interactPrompt) this.interactPrompt.hidden = true;
+    if (this.sabotageBtn) this.sabotageBtn.hidden = true;
+    if (this.ventMenu) this.ventMenu.hidden = true;
     const tp = document.getElementById("task-progress");
     if (tp) tp.hidden = true;
+    const sabMenu = document.getElementById("sabotage-menu");
+    if (sabMenu) sabMenu.hidden = true;
+    const sabAlert = document.getElementById("sabotage-alert");
+    if (sabAlert) sabAlert.hidden = true;
   }
 }

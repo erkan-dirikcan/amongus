@@ -305,3 +305,31 @@ button.link {
 .chat-input-row { display: flex; gap: 8px; }
 .chat-input-row input { flex: 1; }
 .chat-input-row button { width: auto; padding: 12px 20px; }
+
+/* Sabotage / Vent UI */
+.sabotage-btn {
+  position: fixed; bottom: 24px; right: 120px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: #6a1b9a; color: #fff; border: 3px solid #fff;
+  font-size: 24px; cursor: pointer; z-index: 100;
+}
+.sabotage-menu {
+  position: fixed; bottom: 100px; right: 24px;
+  background: #1b263b; border: 2px solid #6a1b9a;
+  border-radius: 12px; padding: 12px; z-index: 101;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sabotage-menu button { width: auto; padding: 8px 16px; text-align: left; background: #333; }
+.vent-menu {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #1b263b; border: 2px solid #ffd166;
+  border-radius: 12px; padding: 24px; z-index: 200;
+}
+.vent-menu h3 { color: #ffd166; margin-bottom: 12px; }
+.vent-menu button { width: auto; margin: 4px 0; padding: 8px 16px; text-align: left; }
+.sabotage-alert {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(200,30,30,0.9); color: #fff;
+  padding: 12px 24px; border-radius: 8px; z-index: 150;
+  font-weight: bold; font-size: 1.2rem;
+}

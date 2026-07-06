@@ -63,6 +63,18 @@ export function initGameScreen(): void {
     stopPhaserGame();
     showGameOver(payload.winner);
   });
+
+  socket.on("game:ventState", (payload: any) => {
+    window.dispatchEvent(new CustomEvent("game:ventState", { detail: payload }));
+  });
+
+  socket.on("game:sabotageStarted", (payload: any) => {
+    window.dispatchEvent(new CustomEvent("game:sabotageStarted", { detail: payload }));
+  });
+
+  socket.on("game:sabotageFixed", (payload: any) => {
+    window.dispatchEvent(new CustomEvent("game:sabotageFixed", { detail: payload }));
+  });
 }
 
 function updateTaskProgress(completed: number, total: number): void {
