@@ -4,6 +4,7 @@ import { env } from "./config/env.js";
 import { prisma } from "./db/prisma.js";
 import { setupSocketServer } from "./sockets/index.js";
 import { LobbyManager } from "./lobby/manager.js";
+import { GameEngine } from "./game/engine.js";
 
 async function main(): Promise<void> {
   try {
@@ -20,9 +21,10 @@ async function main(): Promise<void> {
     console.log(`[server] Environment: ${env.nodeEnv}`);
   });
 
-  // Lobby system
+  // Lobby + game systems
   const lobbyManager = new LobbyManager();
-  setupSocketServer(server, lobbyManager);
+  const gameEngine = new GameEngine();
+  setupSocketServer(server, lobbyManager, gameEngine);
   console.log(`[server] Socket.io lobby system initialized`);
 
   const shutdown = async (signal: string) => {

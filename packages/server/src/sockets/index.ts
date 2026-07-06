@@ -1,10 +1,12 @@
 import { Server as SocketIOServer } from "socket.io";
 import type { Server as HTTPServer } from "node:http";
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
-import { AUTH_COOKIE_NAME } from "@amongus/shared";
+import { AUTH_COOKIE_NAME, GAME_EVENTS } from "@amongus/shared";
 import { verifyToken } from "../auth/jwt.js";
 import type { LobbyManager } from "../lobby/manager.js";
 import { registerLobbyHandlers } from "./lobbyHandlers.js";
+import { registerGameHandlers } from "./gameHandlers.js";
+import { GameEngine } from "../game/engine.js";
 import cookieParser from "cookie-parser";
 
 /**
@@ -20,7 +22,11 @@ function parseCookies(rawCookie?: string): Record<string, string> {
   return cookies;
 }
 
-export function setupSocketServer(httpServer: HTTPServer, lobbyManager: LobbyManager): ExtendedIo {
+export function setupSocketServer(
+  httpServer: HTTPServer,
+  lobbyManager: LobbyManager,
+  gameEngine: GameEngine
+): ExtendedIo {
   const io = new SocketIOServer(httpServer, {
     cors: {
       origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5173", "http://localhost:3000"],
@@ -45,7 +51,8 @@ export function setupSocketServer(httpServer: HTTPServer, lobbyManager: LobbyMan
   });
 
   io.on("connection", (socket: ExtendedSocket) => {
-    registerLobbyHandlers(io, socket, lobbyManager);
+    registerLobbyHandlers(io, socket, lobbyManager, gameEngine);
+    registerGameHandlers(io, socket, gameEngine);
 
     socket.on("disconnect", () => {
       const result = lobbyManager.leaveLobbyBySocket(socket.id);
@@ -53,8 +60,21 @@ export function setupSocketServer(httpServer: HTTPServer, lobbyManager: LobbyMan
         const state = lobbyManager.toLobbyState(result.lobby);
         io.to(result.lobby.code).emit("lobby:updated", state);
       }
+      // TODO: game cleanup (Sub-project 4+ — handle mid-game disconnect)
     });
   });
+
+  // Start tick loop (20Hz)
+  const TICK_MS = 50;
+  setInterval(() => {
+    for (const matchId of gameEngine.getActiveMatchIds()) {
+      const payload = gameEngine.tick(matchId);
+      const match = gameEngine.getMatch(matchId);
+      if (match) {
+        io.to(match.code).emit(GAME_EVENTS.TICK, payload);
+      }
+    }
+  }, TICK_MS);
 
   return io;
 }

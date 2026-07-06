@@ -151,6 +151,19 @@ export class GameEngine {
     return this.matches.get(matchId);
   }
 
+  findMatchByUser(userId: string): GameState | undefined {
+    for (const match of this.matches.values()) {
+      if (match.players.has(userId)) return match;
+    }
+    return undefined;
+  }
+
+  getActiveMatchIds(): string[] {
+    return [...this.matches.values()]
+      .filter((m) => m.status === "IN_PROGRESS")
+      .map((m) => m.matchId);
+  }
+
   removeMatch(matchId: string): void {
     this.matches.delete(matchId);
   }

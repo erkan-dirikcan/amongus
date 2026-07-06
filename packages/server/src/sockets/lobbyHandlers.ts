@@ -1,12 +1,15 @@
 import type { Server as SocketIOServer } from "socket.io";
 import type { ExtendedSocket, ExtendedIo } from "./types.js";
 import type { LobbyManager, LobbyErrorCode } from "../lobby/manager.js";
-import { LOBBY_EVENTS, lobbyCreateSchema, lobbyJoinSchema, lobbySetColorSchema } from "@amongus/shared";
+import { LOBBY_EVENTS, GAME_EVENTS, lobbyCreateSchema, lobbyJoinSchema, lobbySetColorSchema } from "@amongus/shared";
+import { prisma } from "../db/prisma.js";
+import { GameEngine } from "../game/engine.js";
 
 export function registerLobbyHandlers(
   io: ExtendedIo,
   socket: ExtendedSocket,
-  mgr: LobbyManager
+  mgr: LobbyManager,
+  engine: GameEngine
 ): void {
   const user = socket.data.user;
 
@@ -79,13 +82,62 @@ export function registerLobbyHandlers(
     }
   });
 
-  socket.on(LOBBY_EVENTS.START, () => {
+  socket.on(LOBBY_EVENTS.START, async () => {
     const result = mgr.startLobby(user.userId);
-    if ("lobby" in result && result.lobby) {
-      io.to(result.lobby.code).emit(LOBBY_EVENTS.UPDATED, mgr.toLobbyState(result.lobby));
-      io.to(result.lobby.code).emit(LOBBY_EVENTS.STARTED, { code: result.lobby.code });
-    } else if ("error" in result) {
+    if ("error" in result) {
       socket.emit(LOBBY_EVENTS.ERROR, { code: result.error, message: errorToMessage(result.error) });
+      return;
+    }
+
+    const lobby = result.lobby;
+    io.to(lobby.code).emit(LOBBY_EVENTS.UPDATED, mgr.toLobbyState(lobby));
+
+    // Create match in DB
+    const match = await prisma.match.create({
+      data: {
+        code: lobby.code,
+        hostId: lobby.hostId,
+        status: "IN_PROGRESS",
+        players: {
+          create: lobby.players.map((p) => ({
+            userId: p.userId,
+            color: p.color,
+          })),
+        },
+      },
+    });
+
+    // Create game state
+    const socketIdMap = new Map(lobby.players.map((p) => [p.userId, p.socketId]));
+    engine.createMatch(
+      match.id,
+      lobby.code,
+      lobby.players.map((p) => ({ userId: p.userId, username: p.username, color: p.color })),
+      socketIdMap
+    );
+
+    // Assign roles in DB
+    const gameMatch = engine.getMatch(match.id)!;
+    for (const p of gameMatch.players.values()) {
+      await prisma.matchPlayer.updateMany({
+        where: { matchId: match.id, userId: p.userId },
+        data: { role: p.role },
+      });
+    }
+
+    // Emit game:started to each player (with THEIR role)
+    for (const p of gameMatch.players.values()) {
+      const payload = {
+        matchId: match.id,
+        role: p.role,
+        players: [...gameMatch.players.values()].map((gp) => ({
+          userId: gp.userId,
+          username: gp.username,
+          color: gp.color,
+        })),
+        spawn: { x: p.x, y: p.y },
+      };
+      io.to(p.socketId).emit(GAME_EVENTS.STARTED, payload);
     }
   });
 }
