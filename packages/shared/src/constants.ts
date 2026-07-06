@@ -37,3 +37,19 @@ export const LOBBY_CODE_LENGTH = 6;
 // LOBBY_EVENTS is defined in ./types.ts (per task brief Step 2); types.ts does not import from
 // constants.ts, so this re-export introduces no circular dependency.
 export { LOBBY_EVENTS } from "./types.js";
+
+// ─── Game constants ────────────────────────────────────────────────────
+
+export const PLAYER_SPEED = 3.0;              // tiles per second
+export const TICK_RATE_HZ = 20;
+export const TICK_INTERVAL_MS = 1000 / TICK_RATE_HZ; // 50ms
+export const DIAGONAL_FACTOR = 1 / Math.sqrt(2); // ~0.707
+export const TILE_SIZE = 32;                  // pixels per tile
+export const PLAYER_HITBOX = 20;              // pixels (smaller than tile)
+
+/** Number of impostors based on total player count. */
+export function getImpostorCount(playerCount: number): number {
+  if (playerCount <= 5) return 1;
+  if (playerCount <= 7) return 2;
+  return Math.min(3, Math.floor(playerCount / 3));
+}

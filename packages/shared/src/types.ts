@@ -71,3 +71,50 @@ export const LOBBY_EVENTS = {
   ERROR: "lobby:error",
   STARTED: "lobby:started",
 } as const;
+
+// ─── Game types ────────────────────────────────────────────────────────
+
+export type PlayerRole = "IMPOSTOR" | "CREW";
+export type PlayerFacing = "up" | "down" | "left" | "right";
+
+export interface GameStartedPlayer {
+  userId: string;
+  username: string;
+  color: string;
+}
+
+export interface GameStartedPayload {
+  matchId: string;
+  role: PlayerRole;
+  players: GameStartedPlayer[];
+  spawn: { x: number; y: number };
+}
+
+export interface TickPlayer {
+  userId: string;
+  x: number;
+  y: number;
+  facing: PlayerFacing;
+  isAlive: boolean;
+}
+
+export interface GameTickPayload {
+  players: TickPlayer[];
+}
+
+export interface GameInputPayload {
+  dx: number;
+  dy: number;
+  seq: number;
+}
+
+export interface GameEndedPayload {
+  winner: "CREW" | "IMPOSTOR";
+}
+
+export const GAME_EVENTS = {
+  INPUT: "game:input",
+  STARTED: "game:started",
+  TICK: "game:tick",
+  ENDED: "game:ended",
+} as const;
