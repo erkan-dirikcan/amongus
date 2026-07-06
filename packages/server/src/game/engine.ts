@@ -1,9 +1,9 @@
-import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS } from "@amongus/shared";
+import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS, KILL_COOLDOWN_MS, KILL_DISTANCE, TASK_INTERACT_DISTANCE } from "@amongus/shared";
 import type { GameTickPayload, TickPlayer } from "@amongus/shared";
 import { assignRoles } from "./roles.js";
 import { createTasks } from "./tasks.js";
 import { WALL_GRID, MAP_WIDTH, MAP_HEIGHT, SPAWN_CENTER } from "./mapData.js";
-import type { GameState, GamePlayer } from "./types.js";
+import type { GameState, GamePlayer, Corpse } from "./types.js";
 
 const PLAYER_RADIUS = 0.3; // tile units, for hitbox (PLAYER_HITBOX/TILE_SIZE ≈ 0.625, half ≈ 0.3)
 
@@ -62,7 +62,7 @@ export class GameEngine {
         facing: "down",
         lastInputSeq: 0,
         socketId: socketIdMap?.get(p.userId) ?? "",
-        killCooldownUntil: 0,
+        killCooldownUntil: Date.now() + KILL_COOLDOWN_MS,
       });
     });
 
@@ -183,5 +183,111 @@ export class GameEngine {
 
   removeMatch(matchId: string): void {
     this.matches.delete(matchId);
+  }
+
+  kill(matchId: string, killerId: string): { success: boolean; victimId?: string; cooldownUntil?: number; message?: string; corpse?: Corpse } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+
+    const killer = match.players.get(killerId);
+    if (!killer) return { success: false, message: "Player not found" };
+    if (killer.role !== "IMPOSTOR") return { success: false, message: "Only impostors can kill" };
+    if (!killer.isAlive) return { success: false, message: "Dead players cannot kill" };
+
+    const now = Date.now();
+    if (now < killer.killCooldownUntil) {
+      return { success: false, cooldownUntil: killer.killCooldownUntil, message: "Kill on cooldown" };
+    }
+
+    // Find nearest alive crewmate within KILL_DISTANCE
+    let nearest: GamePlayer | null = null;
+    let nearestDist = Infinity;
+    for (const p of match.players.values()) {
+      if (p.userId === killerId) continue;
+      if (!p.isAlive) continue;
+      if (p.role !== "CREW") continue; // can only kill crewmates
+      const dist = Math.sqrt((p.x - killer.x) ** 2 + (p.y - killer.y) ** 2);
+      if (dist <= KILL_DISTANCE && dist < nearestDist) {
+        nearest = p;
+        nearestDist = dist;
+      }
+    }
+
+    if (!nearest) return { success: false, message: "No target in range" };
+
+    // Kill the victim
+    nearest.isAlive = false;
+    const now2 = Date.now();
+    killer.killCooldownUntil = now2 + KILL_COOLDOWN_MS;
+
+    const corpse: Corpse = {
+      id: `corpse-${nearest.userId}-${now2}`,
+      victimId: nearest.userId,
+      victimColor: nearest.color,
+      x: nearest.x,
+      y: nearest.y,
+    };
+    match.corpses.push(corpse);
+
+    return { success: true, victimId: nearest.userId, cooldownUntil: killer.killCooldownUntil, corpse };
+  }
+
+  completeTask(matchId: string, userId: string, taskId: string): { success: boolean; taskProgress?: { total: number; completed: number }; message?: string } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+
+    const player = match.players.get(userId);
+    if (!player) return { success: false, message: "Player not found" };
+    if (!player.isAlive) return { success: false, message: "Dead players cannot complete tasks" };
+    if (player.role !== "CREW") return { success: false, message: "Only crewmates can complete tasks" };
+
+    const task = match.tasks.get(taskId);
+    if (!task) return { success: false, message: "Task not found" };
+    if (task.assignedTo !== userId) return { success: false, message: "Task not assigned to you" };
+    if (task.completed) return { success: false, message: "Task already completed" };
+
+    // Distance check (server-authoritative)
+    const dist = Math.sqrt((task.x - player.x) ** 2 + (task.y - player.y) ** 2);
+    if (dist > TASK_INTERACT_DISTANCE) return { success: false, message: "Too far from task" };
+
+    task.completed = true;
+    match.taskProgress.completed++;
+
+    return { success: true, taskProgress: match.taskProgress };
+  }
+
+  report(matchId: string, userId: string, corpseId: string): { success: boolean; message: string } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+
+    const player = match.players.get(userId);
+    if (!player) return { success: false, message: "Player not found" };
+    if (!player.isAlive) return { success: false, message: "Dead players cannot report" };
+
+    const corpse = match.corpses.find((c) => c.id === corpseId);
+    if (!corpse) return { success: false, message: "Corpse not found" };
+
+    const dist = Math.sqrt((corpse.x - player.x) ** 2 + (corpse.y - player.y) ** 2);
+    if (dist > TASK_INTERACT_DISTANCE) return { success: false, message: "Too far from corpse" };
+
+    // Placeholder: meeting comes in Sub-project 4B
+    return { success: true, message: "Meeting yakinda (Sub-project 4B)" };
+  }
+
+  checkWin(matchId: string): "CREW" | "IMPOSTOR" | null {
+    const match = this.matches.get(matchId);
+    if (!match) return null;
+
+    if (match.taskProgress.completed >= match.taskProgress.total && match.taskProgress.total > 0) {
+      return "CREW";
+    }
+
+    const aliveCrew = [...match.players.values()].filter((p) => p.role === "CREW" && p.isAlive).length;
+    const aliveImpostors = [...match.players.values()].filter((p) => p.role === "IMPOSTOR" && p.isAlive).length;
+
+    if (aliveImpostors === 0) return "CREW";
+    if (aliveCrew <= aliveImpostors) return "IMPOSTOR";
+
+    return null;
   }
 }
