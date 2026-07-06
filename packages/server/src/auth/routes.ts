@@ -15,7 +15,7 @@ export function createAuthRouter(): Router {
     try {
       const parsed = registerSchema.safeParse(req.body);
       if (!parsed.success) {
-        throw Object.assign(new Error("Validation failed"), { status: 400, code: "validation_error" });
+        throw parsed.error;
       }
       const { username, password } = parsed.data;
 
@@ -54,7 +54,7 @@ export function createAuthRouter(): Router {
     try {
       const parsed = loginSchema.safeParse(req.body);
       if (!parsed.success) {
-        throw Object.assign(new Error("Validation failed"), { status: 400, code: "validation_error" });
+        throw parsed.error;
       }
       const { username, password } = parsed.data;
 

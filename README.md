@@ -53,6 +53,8 @@ docker compose logs -f app
 
 Container ayağa kalktıktan sonra (≈10–15 sn) auth akışını doğrulayın:
 
+> **Önemli:** Smoke test'i HTTP üzerinden yaparken `.env` dosyasında `COOKIE_SECURE=false` olarak ayarlayın. `Secure` flag'i olan bir cookie HTTP üzerinden gönderilmez ve `/api/auth/me` 401 döner. Production'da mutlaka `true` ve HTTPS kullanın.
+
 ```bash
 # Health check
 curl -s http://localhost:3000/api/health
@@ -74,9 +76,9 @@ curl -s -c cookies.txt -X POST http://localhost:3000/api/auth/login \
 curl -s -b cookies.txt http://localhost:3000/api/auth/me
 # Beklenen: 200 + {user:{...}}
 
-# Logout (cookie sil)
-curl -s -c cookies.txt -X POST http://localhost:3000/api/auth/logout
-# Beklenen: 200 + {message:"..."}
+# Logout (204 No Content - cookie silinir)
+curl -s -X POST http://localhost:3000/api/auth/logout -b cookies.txt -o /dev/null -w "%%{http_code}\n"
+# Beklenen: 204
 
 # Durdur / temizle
 docker compose down          # veriyi korur
