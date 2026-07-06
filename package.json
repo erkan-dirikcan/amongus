@@ -1,0 +1,18 @@
+{
+  "name": "amongus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Web-based Among Us clone for friends",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "echo \"TODO: add linter in later sub-project\" && exit 0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
