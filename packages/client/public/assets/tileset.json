@@ -1,0 +1,40 @@
+{
+  "columns": 5,
+  "image": "tileset.png",
+  "imageheight": 32,
+  "imagewidth": 160,
+  "margin": 0,
+  "name": "tileset",
+  "spacing": 0,
+  "tilecount": 5,
+  "tileheight": 32,
+  "tilewidth": 32,
+  "tiles": [
+    {
+      "id": 0,
+      "properties": []
+    },
+    {
+      "id": 1,
+      "properties": [
+        {
+          "name": "collides",
+          "type": "bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "properties": []
+    },
+    {
+      "id": 3,
+      "properties": []
+    },
+    {
+      "id": 4,
+      "properties": []
+    }
+  ]
+}
