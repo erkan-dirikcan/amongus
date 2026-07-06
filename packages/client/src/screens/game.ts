@@ -6,12 +6,24 @@ import type { GameStartedPayload } from "../types.js";
 export function initGameScreen(): void {
   const socket = getSocket();
 
-  socket.on("game:started", (payload: GameStartedPayload) => {
+  socket.on("game:started", async (payload: GameStartedPayload) => {
     showScreen("game");
     const roleEl = document.getElementById("role-display")!;
     roleEl.textContent = payload.role === "IMPOSTOR" ? "🔪 IMPOSTOR" : "🛠️ CREWMATE";
     roleEl.style.background = payload.role === "IMPOSTOR" ? "rgba(200,30,30,0.8)" : "rgba(30,100,200,0.8)";
-    startPhaserGame(payload);
+
+    // Fetch userId before starting Phaser (so GameScene can use it synchronously in create())
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      const data = await res.json();
+      if (data.user) {
+        startPhaserGame({ ...payload, myUserId: data.user.id });
+      } else {
+        startPhaserGame(payload);
+      }
+    } catch {
+      startPhaserGame(payload);
+    }
   });
 
   socket.on("game:ended", () => {

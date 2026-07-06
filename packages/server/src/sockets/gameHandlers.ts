@@ -19,7 +19,18 @@ export function registerGameHandlers(
     ) {
       return; // ignore malformed
     }
-    const { dx, dy, seq } = payload as { dx: number; dy: number; seq: number };
+    const { dx: rawDx, dy: rawDy, seq } = payload as { dx: number; dy: number; seq: number };
+
+    // Throttle: ignore inputs more frequent than every 30ms (allows ~33Hz, prevents flooding)
+    const now = Date.now();
+    const lastInput = (socket as any)._lastGameInput || 0;
+    if (now - lastInput < 30) return;
+    (socket as any)._lastGameInput = now;
+
+    // Clamp to unit range — prevents teleport exploit (C1)
+    const dx = Math.max(-1, Math.min(1, rawDx));
+    const dy = Math.max(-1, Math.min(1, rawDy));
+
     // Find which match this user is in
     const match = engine.findMatchByUser(user.userId);
     if (!match) return;

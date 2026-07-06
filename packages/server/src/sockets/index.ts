@@ -60,7 +60,16 @@ export function setupSocketServer(
         const state = lobbyManager.toLobbyState(result.lobby);
         io.to(result.lobby.code).emit("lobby:updated", state);
       }
-      // TODO: game cleanup (Sub-project 4+ — handle mid-game disconnect)
+      // Game cleanup: mark player as not alive (stops movement; Sub-project 4 handles full leave/end)
+      const gameMatch = gameEngine.findMatchBySocket(socket.id);
+      if (gameMatch) {
+        for (const player of gameMatch.players.values()) {
+          if (player.socketId === socket.id) {
+            player.isAlive = false; // will stop movement, Sub-4 handles properly
+            break;
+          }
+        }
+      }
     });
   });
 

@@ -92,52 +92,60 @@ export function registerLobbyHandlers(
     const lobby = result.lobby;
     io.to(lobby.code).emit(LOBBY_EVENTS.UPDATED, mgr.toLobbyState(lobby));
 
-    // Create match in DB
-    const match = await prisma.match.create({
-      data: {
-        code: lobby.code,
-        hostId: lobby.hostId,
-        status: "IN_PROGRESS",
-        players: {
-          create: lobby.players.map((p) => ({
-            userId: p.userId,
-            color: p.color,
-          })),
+    try {
+      // Create match in DB
+      const match = await prisma.match.create({
+        data: {
+          code: lobby.code,
+          hostId: lobby.hostId,
+          status: "IN_PROGRESS",
+          players: {
+            create: lobby.players.map((p) => ({
+              userId: p.userId,
+              color: p.color,
+            })),
+          },
         },
-      },
-    });
-
-    // Create game state
-    const socketIdMap = new Map(lobby.players.map((p) => [p.userId, p.socketId]));
-    engine.createMatch(
-      match.id,
-      lobby.code,
-      lobby.players.map((p) => ({ userId: p.userId, username: p.username, color: p.color })),
-      socketIdMap
-    );
-
-    // Assign roles in DB
-    const gameMatch = engine.getMatch(match.id)!;
-    for (const p of gameMatch.players.values()) {
-      await prisma.matchPlayer.updateMany({
-        where: { matchId: match.id, userId: p.userId },
-        data: { role: p.role },
       });
-    }
 
-    // Emit game:started to each player (with THEIR role)
-    for (const p of gameMatch.players.values()) {
-      const payload = {
-        matchId: match.id,
-        role: p.role,
-        players: [...gameMatch.players.values()].map((gp) => ({
-          userId: gp.userId,
-          username: gp.username,
-          color: gp.color,
-        })),
-        spawn: { x: p.x, y: p.y },
-      };
-      io.to(p.socketId).emit(GAME_EVENTS.STARTED, payload);
+      // Create game state
+      const socketIdMap = new Map(lobby.players.map((p) => [p.userId, p.socketId]));
+      engine.createMatch(
+        match.id,
+        lobby.code,
+        lobby.players.map((p) => ({ userId: p.userId, username: p.username, color: p.color })),
+        socketIdMap
+      );
+
+      // Assign roles in DB
+      const gameMatch = engine.getMatch(match.id)!;
+      for (const p of gameMatch.players.values()) {
+        await prisma.matchPlayer.updateMany({
+          where: { matchId: match.id, userId: p.userId },
+          data: { role: p.role },
+        });
+      }
+
+      // Emit game:started to each player (with THEIR role)
+      for (const p of gameMatch.players.values()) {
+        const payload = {
+          matchId: match.id,
+          role: p.role,
+          players: [...gameMatch.players.values()].map((gp) => ({
+            userId: gp.userId,
+            username: gp.username,
+            color: gp.color,
+          })),
+          spawn: { x: p.x, y: p.y },
+        };
+        io.to(p.socketId).emit(GAME_EVENTS.STARTED, payload);
+      }
+    } catch (dbErr) {
+      console.error("[server] Failed to create match:", dbErr);
+      socket.emit(LOBBY_EVENTS.ERROR, { code: "match_creation_failed", message: "Failed to start game" });
+      // Revert lobby status so players can retry
+      lobby.status = "LOBBY";
+      io.to(lobby.code).emit(LOBBY_EVENTS.UPDATED, mgr.toLobbyState(lobby));
     }
   });
 }

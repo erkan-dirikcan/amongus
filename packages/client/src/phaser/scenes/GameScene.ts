@@ -39,6 +39,8 @@ export class GameScene extends Phaser.Scene {
     const payload = this.game.registry.get("gamePayload") as GameStartedPayload;
     this.matchId = payload.matchId;
     this.myRole = payload.role;
+    // Set synchronously — the game screen fetches userId before starting Phaser (C2 fix)
+    this.myUserId = payload.myUserId || "";
   }
 
   create(): void {
@@ -87,20 +89,6 @@ export class GameScene extends Phaser.Scene {
     // 6. Socket listener
     const socket = getSocket();
     socket.on("game:tick", (data: GameTickPayload) => this.onTick(data));
-
-    // 7. Fetch user ID if not set
-    if (!this.myUserId) {
-      fetch("/api/auth/me", { credentials: "include" })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.user) {
-            this.myUserId = data.user.id;
-            this.game.registry.set("userId", this.myUserId);
-            this.myPlayer = this.playerSprites[this.myUserId]?.sprite;
-          }
-        })
-        .catch(() => {});
-    }
   }
 
   private createAnimations(): void {

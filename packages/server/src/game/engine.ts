@@ -158,6 +158,15 @@ export class GameEngine {
     return undefined;
   }
 
+  findMatchBySocket(socketId: string): GameState | undefined {
+    for (const match of this.matches.values()) {
+      for (const player of match.players.values()) {
+        if (player.socketId === socketId) return match;
+      }
+    }
+    return undefined;
+  }
+
   getActiveMatchIds(): string[] {
     return [...this.matches.values()]
       .filter((m) => m.status === "IN_PROGRESS")

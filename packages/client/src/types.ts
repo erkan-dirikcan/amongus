@@ -33,6 +33,8 @@ export interface GameStartedPayload {
   role: PlayerRole;
   players: GameStartedPlayer[];
   spawn: { x: number; y: number };
+  /** Set client-side by the game screen so GameScene can identify the local player synchronously. */
+  myUserId?: string;
 }
 
 export interface TickPlayer {
