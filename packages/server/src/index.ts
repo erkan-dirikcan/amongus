@@ -2,9 +2,10 @@ import "dotenv/config";
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { prisma } from "./db/prisma.js";
+import { setupSocketServer } from "./sockets/index.js";
+import { LobbyManager } from "./lobby/manager.js";
 
 async function main(): Promise<void> {
-  // Verify DB connectivity at startup
   try {
     await prisma.$connect();
     console.log(`[server] Connected to database`);
@@ -19,7 +20,11 @@ async function main(): Promise<void> {
     console.log(`[server] Environment: ${env.nodeEnv}`);
   });
 
-  // Graceful shutdown
+  // Lobby system
+  const lobbyManager = new LobbyManager();
+  setupSocketServer(server, lobbyManager);
+  console.log(`[server] Socket.io lobby system initialized`);
+
   const shutdown = async (signal: string) => {
     console.log(`[server] ${signal} received, shutting down...`);
     server.close();
