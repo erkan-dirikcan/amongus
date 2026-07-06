@@ -105,3 +105,10 @@ docker compose down -v       # veritabanı datasını da siler
 - Emergency button + ceset raporu → meeting
 - Chat, oylama, atılma
 - Kazanma koşulları tam çalışır
+
+✅ **Sub-project 5:** Sabotage + Vent (eksiksiz deneyim)
+- Vent sistemi (impostor havalandırma)
+- 4 sabotaj türü (Lights, Comms, Reactor, O2)
+- Repair mini-oyunları
+
+🎉 **PROJE TAMAMLANDI!** Tam oynanabilir Among Us klonu.
