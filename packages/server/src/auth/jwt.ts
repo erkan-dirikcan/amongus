@@ -8,7 +8,8 @@ export interface JwtPayload {
 
 export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtSecret, {
-    expiresIn: env.jwtExpiresIn,
+    // expiresIn accepts time strings like "7d", "1h" — env value is validated at config layer
+    expiresIn: env.jwtExpiresIn as jwt.SignOptions["expiresIn"],
   });
 }
 
