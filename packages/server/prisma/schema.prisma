@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  username     String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  stats        UserStats?
+
+  @@index([username])
+}
+
+model UserStats {
+  userId         String   @id
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gamesPlayed    Int      @default(0)
+  wins           Int      @default(0)
+  losses         Int      @default(0)
+  tasksCompleted Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
