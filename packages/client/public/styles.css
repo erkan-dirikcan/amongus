@@ -223,3 +223,57 @@ button.link {
   flex: 1;
   min-width: 100px;
 }
+
+.minigame-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.minigame-card {
+  background: #1b263b; border: 2px solid #ffd166;
+  border-radius: 12px; padding: 24px; min-width: 360px;
+}
+.minigame-card h3 { color: #ffd166; margin-bottom: 16px; text-align: center; }
+.wire-row { display: flex; align-items: center; gap: 80px; margin: 12px 0; }
+.wire-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; }
+.wire-dot.selected { border-color: #fff; }
+.wire-slot { width: 28px; height: 28px; border-radius: 50%; border: 2px dashed #666; cursor: pointer; }
+.wire-slot.connected { border-style: solid; border-color: #fff; }
+.download-bar { width: 300px; height: 24px; background: #333; border-radius: 12px; overflow: hidden; margin: 16px auto; }
+.download-fill { height: 100%; background: #06d6a0; width: 0%; transition: width 0.1s; }
+.download-btn { display: block; margin: 12px auto; width: auto; padding: 8px 24px; }
+.task-progress {
+  position: fixed; top: 12px; left: 12px;
+  background: rgba(0,0,0,0.7); color: #fff;
+  padding: 8px 16px; border-radius: 8px; z-index: 100;
+  font-weight: bold;
+}
+.kill-btn {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: #c62828; color: #fff; border: 3px solid #fff;
+  font-size: 28px; cursor: pointer; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.kill-btn:disabled { background: #555; opacity: 0.5; cursor: not-allowed; }
+.report-btn {
+  position: fixed; bottom: 24px; right: 120px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: #fbc02d; color: #1b263b; border: 3px solid #fff;
+  font-size: 24px; cursor: pointer; z-index: 100;
+}
+.interact-prompt {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); color: #ffd166;
+  padding: 8px 20px; border-radius: 8px; z-index: 100;
+  font-weight: bold;
+}
+.game-over {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 300;
+}
+.game-over h1 { font-size: 3rem; margin-bottom: 24px; }
+.game-over .crew-win { color: #06d6a0; }
+.game-over .impostor-win { color: #ef476f; }
