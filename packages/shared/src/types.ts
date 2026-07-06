@@ -233,3 +233,43 @@ export const MEETING_EVENTS = {
   CHAT_MESSAGE: "game:chatMessage",
   SEND_CHAT: "game:sendChat",
 } as const;
+
+// ─── Vent & Sabotage types ─────────────────────────────────────────────
+
+export type SabotageType = "lights" | "comms" | "reactor" | "o2";
+
+export interface VentInfo {
+  id: string;
+  x: number;
+  y: number;
+  room: string;
+}
+
+export interface SabotageStartedPayload {
+  type: SabotageType;
+  expiresAt?: number;
+}
+
+export interface SabotageFixedPayload {
+  type: SabotageType;
+}
+
+export interface VentStatePayload {
+  inVent: boolean;
+  ventId?: string;
+  availableVents?: VentInfo[];
+}
+
+export const VENT_SABOTAGE_EVENTS = {
+  VENT_ENTER: "game:ventEnter",
+  VENT_MOVE: "game:ventMove",
+  VENT_EXIT: "game:ventExit",
+  VENT_STATE: "game:ventState",
+  SABOTAGE: "game:sabotage",
+  SABOTAGE_STARTED: "game:sabotageStarted",
+  SABOTAGE_FIXED: "game:sabotageFixed",
+  REPAIR_LIGHTS: "game:repairLights",
+  REPAIR_COMMS: "game:repairComms",
+  REACTOR_HOLD: "game:reactorHold",
+  O2_CODE: "game:o2Code",
+} as const;

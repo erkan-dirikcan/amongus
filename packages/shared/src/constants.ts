@@ -66,3 +66,10 @@ export const TASK_TYPES = ["wire", "download"] as const;
 
 export const MEETING_DURATION_MS = 90000;  // 90 seconds
 export const EMERGENCY_BUTTON_TILE = { x: 25, y: 25 }; // cafeteria center
+
+// ─── Vent & Sabotage constants ─────────────────────────────────────────
+
+export const SABOTAGE_COOLDOWN_MS = 30000;
+export const REACTOR_TIMEOUT_MS = 30000;
+export const O2_TIMEOUT_MS = 30000;
+export const VENT_INTERACT_DISTANCE = 1.5;
