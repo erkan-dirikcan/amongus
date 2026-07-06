@@ -28,3 +28,22 @@ export const loginSchema = z.object({
   username: z.string().trim().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
+
+// ─── Lobby validation schemas ─────────────────────────────────────────
+
+export const lobbyCreateSchema = z.object({
+  password: z.string().min(1).max(100).optional(),
+});
+
+export const lobbyJoinSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .length(6, "Lobby code must be 6 characters"),
+  password: z.string().min(1).max(100).optional(),
+});
+
+export const lobbySetColorSchema = z.object({
+  color: z.string().min(1).max(20),
+});
