@@ -188,3 +188,48 @@ export const TASK_EVENTS = {
   REPORT: "game:report",
   REPORT_RESULT: "game:reportResult",
 } as const;
+
+// ─── Meeting types ─────────────────────────────────────────────────────
+
+export interface MeetingPlayerInfo {
+  userId: string;
+  username: string;
+  color: string;
+  isAlive: boolean;
+}
+
+export interface MeetingStartedPayload {
+  reason: "report" | "emergency";
+  reporterId: string;
+  reporterName: string;
+  duration: number;
+  players: MeetingPlayerInfo[];
+  victimId?: string;
+}
+
+export interface MeetingResultPayload {
+  ejectedId: string | null;
+  ejectedRole: "IMPOSTOR" | "CREW" | null;
+  wasTie: boolean;
+  votes: Record<string, string | "skip">;
+}
+
+export interface VoteUpdatePayload {
+  voted: Record<string, boolean>; // userId → has voted
+}
+
+export interface ChatMessagePayload {
+  userId: string;
+  username: string;
+  message: string;
+}
+
+export const MEETING_EVENTS = {
+  EMERGENCY: "game:emergency",
+  VOTE: "game:vote",
+  MEETING_STARTED: "game:meetingStarted",
+  VOTE_UPDATE: "game:voteUpdate",
+  MEETING_ENDED: "game:meetingEnded",
+  CHAT_MESSAGE: "game:chatMessage",
+  SEND_CHAT: "game:sendChat",
+} as const;

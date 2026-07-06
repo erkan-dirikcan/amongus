@@ -61,3 +61,8 @@ export const KILL_DISTANCE = 1.5;           // tiles
 export const TASK_INTERACT_DISTANCE = 1.5;  // tiles
 export const TASKS_PER_CREWMATE = 2;
 export const TASK_TYPES = ["wire", "download"] as const;
+
+// ─── Meeting constants ─────────────────────────────────────────────────
+
+export const MEETING_DURATION_MS = 90000;  // 90 seconds
+export const EMERGENCY_BUTTON_TILE = { x: 25, y: 25 }; // cafeteria center
