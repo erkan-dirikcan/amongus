@@ -1,7 +1,7 @@
 import type { Server as SocketIOServer } from "socket.io";
 import type { ExtendedSocket, ExtendedIo } from "./types.js";
 import type { LobbyManager, LobbyErrorCode } from "../lobby/manager.js";
-import { LOBBY_EVENTS, GAME_EVENTS, lobbyCreateSchema, lobbyJoinSchema, lobbySetColorSchema } from "@amongus/shared";
+import { LOBBY_EVENTS, GAME_EVENTS, TASK_EVENTS, lobbyCreateSchema, lobbyJoinSchema, lobbySetColorSchema } from "@amongus/shared";
 import { prisma } from "../db/prisma.js";
 import { GameEngine } from "../game/engine.js";
 
@@ -139,6 +139,18 @@ export function registerLobbyHandlers(
           spawn: { x: p.x, y: p.y },
         };
         io.to(p.socketId).emit(GAME_EVENTS.STARTED, payload);
+      }
+
+      // Emit tasks to each crewmate
+      for (const p of gameMatch.players.values()) {
+        if (p.role !== "CREW") continue;
+        const playerTasks = [...gameMatch.tasks.values()]
+          .filter((t) => t.assignedTo === p.userId)
+          .map((t) => ({ id: t.id, type: t.type, room: t.room, x: t.x, y: t.y, completed: t.completed }));
+        io.to(p.socketId).emit(TASK_EVENTS.TASKS_ASSIGNED, {
+          tasks: playerTasks,
+          total: gameMatch.taskProgress.total,
+        });
       }
     } catch (dbErr) {
       console.error("[server] Failed to create match:", dbErr);
