@@ -19,3 +19,18 @@ export interface LobbyState {
   status: "LOBBY" | "STARTING";
   maxPlayers: number;
 }
+
+export type PlayerRole = "IMPOSTOR" | "CREW";
+
+export interface GameStartedPlayer {
+  userId: string;
+  username: string;
+  color: string;
+}
+
+export interface GameStartedPayload {
+  matchId: string;
+  role: PlayerRole;
+  players: GameStartedPlayer[];
+  spawn: { x: number; y: number };
+}

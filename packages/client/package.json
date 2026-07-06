@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "phaser": "^3.80.1",
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
