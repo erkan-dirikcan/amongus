@@ -54,7 +54,7 @@ describe("POST /api/auth/register", () => {
       .send({ username: "alice", password: "secret456" });
 
     expect(res.status).toBe(409);
-    expect(res.body.code).toBe("username_taken");
+    expect(res.body.error).toBe("username_taken");
   });
 
   it("rejects invalid input with 400", async () => {
@@ -90,7 +90,7 @@ describe("POST /api/auth/login", () => {
       .send({ username: "alice", password: "wrongpassword" });
 
     expect(res.status).toBe(401);
-    expect(res.body.code).toBe("invalid_credentials");
+    expect(res.body.error).toBe("invalid_credentials");
   });
 
   it("rejects unknown user with 401", async () => {
@@ -99,7 +99,7 @@ describe("POST /api/auth/login", () => {
       .send({ username: "ghost", password: "secret123" });
 
     expect(res.status).toBe(401);
-    expect(res.body.code).toBe("invalid_credentials");
+    expect(res.body.error).toBe("invalid_credentials");
   });
 });
 
