@@ -92,11 +92,12 @@ docker compose down -v       # veritabanı datasını da siler
 ## Status
 
 ✅ **Sub-project 1:** Temel Kurulum + Auth
-✅ **Sub-project 2:** Lobi Sistemi (Socket.io ile oda yönetimi)
-- Oda oluşturma, kod ile katılma
-- Renk seçimi, hazır durumu
-- Host yönetimi (otomatik transfer)
-- Login + Menu + Lobby ekranları
-- Realtime senkronizasyon
+✅ **Sub-project 2:** Lobi Sistemi
+✅ **Sub-project 3:** Oyun Çekirdeği (hareket, harita, roller)
+- Lobby "BAŞLAT" → haritaya geçiş
+- WASD hareket (sunucu otoriteri, 20Hz tick)
+- Tiled tilemap (8 oda)
+- Rol dağılımı (Impostor/Crew, gizli)
+- Karakter sprite'ları (4 yön, animasyon)
 
-🚧 **Sonraki:** Sub-project 3 — Oyun Çekirdeği (hareket, harita, roller)
+🚧 **Sonraki:** Sub-project 4 — Görevler + Kill + Meeting (ilk TAM oynanabilir versiyon)
