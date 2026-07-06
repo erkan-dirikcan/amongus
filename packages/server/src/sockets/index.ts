@@ -77,6 +77,12 @@ export function setupSocketServer(
   const TICK_MS = 50;
   setInterval(() => {
     for (const matchId of gameEngine.getActiveMatchIds()) {
+      // Check sabotage timeout
+      const sabWinner = gameEngine.checkSabotageWin(matchId);
+      if (sabWinner) {
+        handleGameEnd(io, gameEngine, matchId, sabWinner);
+        continue;
+      }
       // Check meeting end BEFORE normal tick — if meeting just ended, emit and skip tick.
       if (gameEngine.shouldEndMeeting(matchId)) {
         const result = gameEngine.endMeeting(matchId);
