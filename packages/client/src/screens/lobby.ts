@@ -90,11 +90,22 @@ function renderLobby(state: LobbyState): void {
   for (const p of state.players) {
     const row = document.createElement("div");
     row.className = "player-row";
-    row.innerHTML = `
-      <span class="player-dot" style="background:${COLOR_HEX[p.color] || "#888"}"></span>
-      <span class="player-name">${p.username}${p.isHost ? " 👑" : ""}</span>
-      <span class="player-ready">${p.isReady ? "✓ Hazır" : "⏳ Bekliyor"}</span>
-    `;
+
+    const dot = document.createElement("span");
+    dot.className = "player-dot";
+    dot.style.background = COLOR_HEX[p.color] || "#888";
+
+    const name = document.createElement("span");
+    name.className = "player-name";
+    name.textContent = p.username + (p.isHost ? " 👑" : "");
+
+    const ready = document.createElement("span");
+    ready.className = "player-ready";
+    ready.textContent = p.isReady ? "✓ Hazır" : "⏳ Bekliyor";
+
+    row.appendChild(dot);
+    row.appendChild(name);
+    row.appendChild(ready);
     listEl.appendChild(row);
   }
 

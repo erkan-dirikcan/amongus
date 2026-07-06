@@ -36,9 +36,11 @@ export function createApp(): express.Application {
     const clientDist = path.resolve(__dirname, "../../client/dist");
     app.use(express.static(clientDist));
     // SPA fallback: non-API routes return index.html
-    app.get("*", (req, res) => {
+    app.get("*", (req, res, next) => {
       if (!req.path.startsWith("/api") && !req.path.startsWith("/socket.io")) {
         res.sendFile(path.join(clientDist, "index.html"));
+      } else {
+        next();
       }
     });
   }
