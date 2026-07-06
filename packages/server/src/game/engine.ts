@@ -1,6 +1,7 @@
 import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS } from "@amongus/shared";
 import type { GameTickPayload, TickPlayer } from "@amongus/shared";
 import { assignRoles } from "./roles.js";
+import { createTasks } from "./tasks.js";
 import { WALL_GRID, MAP_WIDTH, MAP_HEIGHT, SPAWN_CENTER } from "./mapData.js";
 import type { GameState, GamePlayer } from "./types.js";
 
@@ -61,8 +62,12 @@ export class GameEngine {
         facing: "down",
         lastInputSeq: 0,
         socketId: socketIdMap?.get(p.userId) ?? "",
+        killCooldownUntil: 0,
       });
     });
+
+    const crewmates = [...playerMap.values()].filter((p) => p.role === "CREW");
+    const tasks = createTasks(crewmates);
 
     this.matches.set(matchId, {
       matchId,
@@ -71,6 +76,9 @@ export class GameEngine {
       players: playerMap,
       tickRate: 20,
       createdAt: Date.now(),
+      tasks,
+      taskProgress: { total: tasks.size, completed: 0 },
+      corpses: [],
     });
   }
 

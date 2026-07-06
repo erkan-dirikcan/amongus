@@ -1,4 +1,22 @@
-import type { PlayerRole, PlayerFacing } from "@amongus/shared";
+import type { PlayerRole, PlayerFacing, TaskType } from "@amongus/shared";
+
+export interface Task {
+  id: string;
+  type: TaskType;
+  room: string;
+  x: number;
+  y: number;
+  assignedTo: string;
+  completed: boolean;
+}
+
+export interface Corpse {
+  id: string;
+  victimId: string;
+  victimColor: string;
+  x: number;
+  y: number;
+}
 
 export interface GamePlayer {
   userId: string;
@@ -13,6 +31,7 @@ export interface GamePlayer {
   facing: PlayerFacing;
   lastInputSeq: number;
   socketId: string;
+  killCooldownUntil: number;
 }
 
 export interface GameState {
@@ -22,4 +41,7 @@ export interface GameState {
   players: Map<string, GamePlayer>;
   tickRate: number;
   createdAt: number;
+  tasks: Map<string, Task>;
+  taskProgress: { total: number; completed: number };
+  corpses: Corpse[];
 }
