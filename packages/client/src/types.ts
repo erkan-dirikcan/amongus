@@ -34,3 +34,15 @@ export interface GameStartedPayload {
   players: GameStartedPlayer[];
   spawn: { x: number; y: number };
 }
+
+export interface TickPlayer {
+  userId: string;
+  x: number;
+  y: number;
+  facing: string;
+  isAlive: boolean;
+}
+
+export interface GameTickPayload {
+  players: TickPlayer[];
+}

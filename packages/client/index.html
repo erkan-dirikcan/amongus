@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Among Us Clone</title>
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      #game-screen { max-width: none; padding: 0; }
+      #game-container { width: 100vw; height: 100vh; }
+      .role-badge {
+        position: fixed; top: 12px; right: 12px;
+        background: rgba(0,0,0,0.7); color: #fff;
+        padding: 8px 16px; border-radius: 8px;
+        font-weight: bold; z-index: 100;
+      }
+    </style>
   </head>
   <body>
     <div id="app">
@@ -62,6 +72,11 @@
           </div>
           <p id="lobby-error" class="error"></p>
         </div>
+      </section>
+
+      <section id="game-screen" class="screen" hidden>
+        <div id="game-container"></div>
+        <div class="role-badge" id="role-display"></div>
       </section>
     </div>
     <script type="module" src="/src/main.ts"></script>
