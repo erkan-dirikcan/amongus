@@ -94,10 +94,11 @@ docker compose down -v       # veritabanı datasını da siler
 ✅ **Sub-project 1:** Temel Kurulum + Auth
 ✅ **Sub-project 2:** Lobi Sistemi
 ✅ **Sub-project 3:** Oyun Çekirdeği (hareket, harita, roller)
-- Lobby "BAŞLAT" → haritaya geçiş
-- WASD hareket (sunucu otoriteri, 20Hz tick)
-- Tiled tilemap (8 oda)
-- Rol dağılımı (Impostor/Crew, gizli)
-- Karakter sprite'ları (4 yön, animasyon)
+✅ **Sub-project 4A:** Görevler + Kill (mini-oyunlar, kill, ceset, kazanma)
+- Wire ve Download mini-oyunları
+- Impostor kill mekanikleri (cooldown, mesafe)
+- Ceset ve hayalet sistemi
+- İki kazanma koşulu (görevler / sayı eşitlenir)
+- Oyun bitişi ekranı
 
-🚧 **Sonraki:** Sub-project 4 — Görevler + Kill + Meeting (ilk TAM oynanabilir versiyon)
+🚧 **Sonraki:** Sub-project 4B — Meeting & Voting (tam oynanabilir)
