@@ -1,4 +1,13 @@
-import type { PlayerRole, PlayerFacing, TaskType } from "@amongus/shared";
+import type { PlayerRole, PlayerFacing, TaskType, SabotageType } from "@amongus/shared";
+
+export interface SabotageState {
+  type: SabotageType;
+  active: boolean;
+  startedAt: number;
+  expiresAt?: number;
+  holders: Set<string>;
+  repairProgress: number;
+}
 
 export interface Task {
   id: string;
@@ -32,6 +41,7 @@ export interface GamePlayer {
   lastInputSeq: number;
   socketId: string;
   killCooldownUntil: number;
+  inVent: boolean;
 }
 
 export interface MeetingState {
@@ -56,4 +66,6 @@ export interface GameState {
   corpses: Corpse[];
   meetingState: MeetingState | null;
   emergencyUsed: Set<string>;
+  sabotage: SabotageState | null;
+  sabotageCooldownUntil: number;
 }

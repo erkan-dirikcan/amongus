@@ -96,6 +96,7 @@ export interface TickPlayer {
   y: number;
   facing: PlayerFacing;
   isAlive: boolean;
+  inVent?: boolean;
 }
 
 export interface GameTickPayload {

@@ -1,9 +1,10 @@
-import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS, KILL_COOLDOWN_MS, KILL_DISTANCE, TASK_INTERACT_DISTANCE, MEETING_DURATION_MS } from "@amongus/shared";
-import type { GameTickPayload, TickPlayer } from "@amongus/shared";
+import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS, KILL_COOLDOWN_MS, KILL_DISTANCE, TASK_INTERACT_DISTANCE, MEETING_DURATION_MS, VENT_INTERACT_DISTANCE } from "@amongus/shared";
+import type { GameTickPayload, TickPlayer, VentInfo } from "@amongus/shared";
 import { assignRoles } from "./roles.js";
 import { tallyVotes } from "./meeting.js";
 import { createTasks } from "./tasks.js";
 import { WALL_GRID, MAP_WIDTH, MAP_HEIGHT, SPAWN_CENTER } from "./mapData.js";
+import { VENT_POSITIONS, findVentById } from "./vents.js";
 import type { GameState, GamePlayer, Corpse } from "./types.js";
 
 const PLAYER_RADIUS = 0.3; // tile units, for hitbox (PLAYER_HITBOX/TILE_SIZE ≈ 0.625, half ≈ 0.3)
@@ -64,6 +65,7 @@ export class GameEngine {
         lastInputSeq: 0,
         socketId: socketIdMap?.get(p.userId) ?? "",
         killCooldownUntil: Date.now() + KILL_COOLDOWN_MS,
+        inVent: false,
       });
     });
 
@@ -82,6 +84,8 @@ export class GameEngine {
       corpses: [],
       meetingState: null,
       emergencyUsed: new Set(),
+      sabotage: null,
+      sabotageCooldownUntil: 0,
     });
   }
 
@@ -241,6 +245,46 @@ export class GameEngine {
     match.corpses.push(corpse);
 
     return { success: true, victimId: nearest.userId, cooldownUntil: killer.killCooldownUntil, corpse };
+  }
+
+  ventEnter(matchId: string, userId: string, ventId: string): { success: boolean; message?: string; vents?: VentInfo[] } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+    const player = match.players.get(userId);
+    if (!player) return { success: false, message: "Player not found" };
+    if (player.role !== "IMPOSTOR") return { success: false, message: "Only impostors can vent" };
+    if (!player.isAlive) return { success: false, message: "Dead players cannot vent" };
+    if (player.inVent) return { success: false, message: "Already in vent" };
+    if (match.meetingState) return { success: false, message: "Cannot vent during meeting" };
+
+    const vent = findVentById(ventId);
+    if (!vent) return { success: false, message: "Vent not found" };
+    const dist = Math.sqrt((vent.x - player.x) ** 2 + (vent.y - player.y) ** 2);
+    if (dist > VENT_INTERACT_DISTANCE) return { success: false, message: "Too far from vent" };
+
+    player.inVent = true;
+    return { success: true, vents: VENT_POSITIONS };
+  }
+
+  ventMove(matchId: string, userId: string, targetVentId: string): { success: boolean; message?: string } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+    const player = match.players.get(userId);
+    if (!player || !player.inVent) return { success: false, message: "Not in vent" };
+    const vent = findVentById(targetVentId);
+    if (!vent) return { success: false, message: "Target vent not found" };
+    player.x = vent.x;
+    player.y = vent.y;
+    return { success: true };
+  }
+
+  ventExit(matchId: string, userId: string): { success: boolean; message?: string } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+    const player = match.players.get(userId);
+    if (!player || !player.inVent) return { success: false, message: "Not in vent" };
+    player.inVent = false;
+    return { success: true };
   }
 
   completeTask(matchId: string, userId: string, taskId: string): { success: boolean; taskProgress?: { total: number; completed: number }; taskId?: string; message?: string } {
