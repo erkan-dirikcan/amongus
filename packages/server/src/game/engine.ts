@@ -1,6 +1,7 @@
-import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS, KILL_COOLDOWN_MS, KILL_DISTANCE, TASK_INTERACT_DISTANCE } from "@amongus/shared";
+import { PLAYER_SPEED, DIAGONAL_FACTOR, TICK_INTERVAL_MS, KILL_COOLDOWN_MS, KILL_DISTANCE, TASK_INTERACT_DISTANCE, MEETING_DURATION_MS } from "@amongus/shared";
 import type { GameTickPayload, TickPlayer } from "@amongus/shared";
 import { assignRoles } from "./roles.js";
+import { tallyVotes } from "./meeting.js";
 import { createTasks } from "./tasks.js";
 import { WALL_GRID, MAP_WIDTH, MAP_HEIGHT, SPAWN_CENTER } from "./mapData.js";
 import type { GameState, GamePlayer, Corpse } from "./types.js";
@@ -98,6 +99,14 @@ export class GameEngine {
   tick(matchId: string): GameTickPayload {
     const match = this.matches.get(matchId);
     if (!match) return { players: [] };
+
+    if (match.meetingState) {
+      // During meeting: no movement, return current positions
+      const tickPlayers: TickPlayer[] = [...match.players.values()].map((p) => ({
+        userId: p.userId, x: p.x, y: p.y, facing: p.facing, isAlive: p.isAlive,
+      }));
+      return { players: tickPlayers };
+    }
 
     const delta = TICK_INTERVAL_MS / 1000; // 0.05s
     const tickPlayers: TickPlayer[] = [];
@@ -257,7 +266,7 @@ export class GameEngine {
     return { success: true, taskProgress: match.taskProgress, taskId };
   }
 
-  report(matchId: string, userId: string, corpseId: string): { success: boolean; message: string } {
+  report(matchId: string, userId: string, corpseId: string): { success: boolean; message: string; meetingStarted?: boolean } {
     const match = this.matches.get(matchId);
     if (!match) return { success: false, message: "Match not found" };
 
@@ -271,8 +280,107 @@ export class GameEngine {
     const dist = Math.sqrt((corpse.x - player.x) ** 2 + (corpse.y - player.y) ** 2);
     if (dist > TASK_INTERACT_DISTANCE) return { success: false, message: "Too far from corpse" };
 
-    // Placeholder: meeting comes in Sub-project 4B
-    return { success: true, message: "Meeting yakinda (Sub-project 4B)" };
+    // Start meeting instead of placeholder
+    this.startMeeting(matchId, "report", userId, corpse.victimId);
+    return { success: true, message: "Meeting started", meetingStarted: true };
+  }
+
+  startMeeting(matchId: string, reason: "report" | "emergency", reporterId: string, victimId?: string): boolean {
+    const match = this.matches.get(matchId);
+    if (!match) return false;
+    if (match.meetingState) return false; // already in meeting
+
+    match.meetingState = {
+      matchId,
+      reason,
+      reporterId,
+      victimId,
+      startedAt: Date.now(),
+      durationMs: MEETING_DURATION_MS,
+      votes: new Map(),
+    };
+    return true;
+  }
+
+  vote(matchId: string, voterId: string, target: string | "skip"): { success: boolean; message?: string } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+    if (!match.meetingState) return { success: false, message: "Not in meeting" };
+
+    const voter = match.players.get(voterId);
+    if (!voter) return { success: false, message: "Player not found" };
+    if (!voter.isAlive) return { success: false, message: "Dead players cannot vote" };
+
+    // Validate target (must be alive player or skip)
+    if (target !== "skip") {
+      const targetPlayer = match.players.get(target);
+      if (!targetPlayer || !targetPlayer.isAlive) {
+        return { success: false, message: "Invalid target" };
+      }
+    }
+
+    match.meetingState.votes.set(voterId, target);
+    return { success: true };
+  }
+
+  endMeeting(matchId: string): { ejectedId: string | null; ejectedRole: "IMPOSTOR" | "CREW" | null; wasTie: boolean } | null {
+    const match = this.matches.get(matchId);
+    if (!match || !match.meetingState) return null;
+
+    const result = tallyVotes(match.meetingState.votes);
+    let ejectedRole: "IMPOSTOR" | "CREW" | null = null;
+
+    if (result.ejected) {
+      const ejected = match.players.get(result.ejected);
+      if (ejected) {
+        ejected.isAlive = false;
+        ejectedRole = ejected.role;
+      }
+    }
+
+    match.meetingState = null;
+    return { ejectedId: result.ejected, ejectedRole, wasTie: result.wasTie };
+  }
+
+  isInMeeting(matchId: string): boolean {
+    const match = this.matches.get(matchId);
+    return !!match?.meetingState;
+  }
+
+  shouldEndMeeting(matchId: string): boolean {
+    const match = this.matches.get(matchId);
+    if (!match?.meetingState) return false;
+    const elapsed = Date.now() - match.meetingState.startedAt;
+    if (elapsed >= match.meetingState.durationMs) return true;
+    // End early if all alive players have voted
+    const aliveCount = [...match.players.values()].filter((p) => p.isAlive).length;
+    return match.meetingState.votes.size >= aliveCount;
+  }
+
+  getMeetingVotes(matchId: string): Record<string, boolean> {
+    const match = this.matches.get(matchId);
+    if (!match?.meetingState) return {};
+    const voted: Record<string, boolean> = {};
+    for (const player of match.players.values()) {
+      if (player.isAlive) {
+        voted[player.userId] = match.meetingState.votes.has(player.userId);
+      }
+    }
+    return voted;
+  }
+
+  canUseEmergency(matchId: string, userId: string): boolean {
+    const match = this.matches.get(matchId);
+    if (!match) return false;
+    if (match.emergencyUsed.has(userId)) return false;
+    const player = match.players.get(userId);
+    if (!player || !player.isAlive) return false;
+    return true;
+  }
+
+  useEmergency(matchId: string, userId: string): void {
+    const match = this.matches.get(matchId);
+    if (match) match.emergencyUsed.add(userId);
   }
 
   checkWin(matchId: string): "CREW" | "IMPOSTOR" | null {
