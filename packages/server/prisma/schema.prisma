@@ -14,6 +14,7 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   stats        UserStats?
+  matches      MatchPlayer[]
 
   @@index([username])
 }
@@ -27,4 +28,44 @@ model UserStats {
   tasksCompleted Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Match {
+  id        String      @id @default(cuid())
+  code      String
+  status    MatchStatus @default(IN_PROGRESS)
+  hostId    String
+  createdAt DateTime    @default(now())
+  endedAt   DateTime?
+  winner    Team?
+  players   MatchPlayer[]
+}
+
+model MatchPlayer {
+  id       String  @id @default(cuid())
+  match    Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId  String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  role     Role?
+  isAlive  Boolean @default(true)
+  color    String
+
+  @@unique([matchId, userId])
+}
+
+enum MatchStatus {
+  LOBBY
+  IN_PROGRESS
+  ENDED
+}
+
+enum Role {
+  IMPOSTOR
+  CREW
+}
+
+enum Team {
+  CREW
+  IMPOSTOR
 }
