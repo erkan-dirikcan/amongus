@@ -136,6 +136,7 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener("game:corpse", this.onCorpseEvent);
     window.addEventListener("game:killResult", this.onKillResult);
     window.addEventListener("game:reportResult", this.onReportResult);
+    window.addEventListener("game:taskCompleted", this.onTaskCompleted);
   }
 
   private createAnimations(): void {
@@ -347,10 +348,22 @@ export class GameScene extends Phaser.Scene {
     setTimeout(() => { prompt.hidden = true; }, 3000);
   };
 
+  private onTaskCompleted = (e: Event): void => {
+    const detail = (e as CustomEvent).detail as { taskId: string };
+    const sprite = this.taskSprites.get(detail.taskId);
+    if (sprite) {
+      sprite.setVisible(false); // hide completed task sprite
+    }
+    // Also update local tasks array
+    const task = this.tasks.find((t) => t.id === detail.taskId);
+    if (task) task.completed = true;
+  };
+
   shutdown(): void {
     window.removeEventListener("game:corpse", this.onCorpseEvent);
     window.removeEventListener("game:killResult", this.onKillResult);
     window.removeEventListener("game:reportResult", this.onReportResult);
+    window.removeEventListener("game:taskCompleted", this.onTaskCompleted);
     if (this.killBtn) this.killBtn.hidden = true;
     if (this.reportBtn) this.reportBtn.hidden = true;
     if (this.interactPrompt) this.interactPrompt.hidden = true;

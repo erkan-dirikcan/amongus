@@ -31,8 +31,16 @@ export function initGameScreen(): void {
     updateTaskProgress(0, payload.total);
   });
 
-  socket.on("game:taskUpdate", (payload: { completed: number; total: number }) => {
+  socket.on("game:taskUpdate", (payload: { completed: number; total: number; taskId?: string }) => {
     updateTaskProgress(payload.completed, payload.total);
+    if (payload.taskId) {
+      // Mark task complete in the global + dispatch event for GameScene
+      if (window.__gameTasks) {
+        const task = window.__gameTasks.find((t) => t.id === payload.taskId);
+        if (task) task.completed = true;
+      }
+      window.dispatchEvent(new CustomEvent("game:taskCompleted", { detail: { taskId: payload.taskId } }));
+    }
   });
 
   socket.on("game:playerKilled", () => {

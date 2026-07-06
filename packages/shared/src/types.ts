@@ -140,6 +140,7 @@ export interface TasksAssignedPayload {
 export interface TaskUpdatePayload {
   completed: number;
   total: number;
+  taskId?: string;
 }
 
 export interface PlayerKilledPayload {

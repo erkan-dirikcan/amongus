@@ -1,6 +1,7 @@
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
 import type { GameEngine } from "../game/engine.js";
 import { TASK_EVENTS, GAME_EVENTS } from "@amongus/shared";
+import { prisma } from "../db/prisma.js";
 
 export function registerGameHandlers(
   io: ExtendedIo,
@@ -45,7 +46,7 @@ export function registerGameHandlers(
 
     const result = engine.completeTask(match.matchId, user.userId, taskId);
     if (result.success) {
-      io.to(match.code).emit(TASK_EVENTS.TASK_UPDATE, result.taskProgress!);
+      io.to(match.code).emit(TASK_EVENTS.TASK_UPDATE, { ...result.taskProgress!, taskId });
       const winner = engine.checkWin(match.matchId);
       if (winner) {
         handleGameEnd(io, engine, match.matchId, winner);
@@ -96,7 +97,37 @@ async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId: string
   const match = engine.getMatch(matchId);
   if (!match) return;
   match.status = "ENDED";
+
+  // Update DB: Match record
+  try {
+    await prisma.match.update({
+      where: { id: matchId },
+      data: { status: "ENDED", endedAt: new Date(), winner },
+    });
+
+    // Update UserStats for each player
+    for (const player of match.players.values()) {
+      const isWin = (winner === "CREW" && player.role === "CREW") || (winner === "IMPOSTOR" && player.role === "IMPOSTOR");
+      await prisma.userStats.upsert({
+        where: { userId: player.userId },
+        create: {
+          userId: player.userId,
+          gamesPlayed: 1,
+          wins: isWin ? 1 : 0,
+          losses: isWin ? 0 : 1,
+        },
+        update: {
+          gamesPlayed: { increment: 1 },
+          wins: { increment: isWin ? 1 : 0 },
+          losses: { increment: isWin ? 0 : 1 },
+        },
+      });
+    }
+  } catch (dbErr) {
+    console.error("[server] Failed to update match stats:", dbErr);
+    // Non-fatal — game still ends, just stats may be incomplete
+  }
+
   io.to(match.code).emit(GAME_EVENTS.ENDED, { winner });
   engine.removeMatch(matchId);
-  // DB update would go here (endedAt, winner, stats) — keep minimal for now
 }

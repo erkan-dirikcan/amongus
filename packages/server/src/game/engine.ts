@@ -232,13 +232,12 @@ export class GameEngine {
     return { success: true, victimId: nearest.userId, cooldownUntil: killer.killCooldownUntil, corpse };
   }
 
-  completeTask(matchId: string, userId: string, taskId: string): { success: boolean; taskProgress?: { total: number; completed: number }; message?: string } {
+  completeTask(matchId: string, userId: string, taskId: string): { success: boolean; taskProgress?: { total: number; completed: number }; taskId?: string; message?: string } {
     const match = this.matches.get(matchId);
     if (!match) return { success: false, message: "Match not found" };
 
     const player = match.players.get(userId);
     if (!player) return { success: false, message: "Player not found" };
-    if (!player.isAlive) return { success: false, message: "Dead players cannot complete tasks" };
     if (player.role !== "CREW") return { success: false, message: "Only crewmates can complete tasks" };
 
     const task = match.tasks.get(taskId);
@@ -253,7 +252,7 @@ export class GameEngine {
     task.completed = true;
     match.taskProgress.completed++;
 
-    return { success: true, taskProgress: match.taskProgress };
+    return { success: true, taskProgress: match.taskProgress, taskId };
   }
 
   report(matchId: string, userId: string, corpseId: string): { success: boolean; message: string } {
