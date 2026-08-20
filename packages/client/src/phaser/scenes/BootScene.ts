@@ -15,6 +15,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start("GameScene", this.scene.settings.data);
+    // Payload is stored in game registry by startPhaserGame()
+    const payload = this.game.registry.get("gamePayload");
+    this.scene.start("GameScene", payload);
   }
 }

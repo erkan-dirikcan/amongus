@@ -271,9 +271,10 @@ button.link {
 }
 .game-over {
   position: fixed; inset: 0; background: rgba(0,0,0,0.9);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
   z-index: 300;
 }
+.game-over:not([hidden]) { display: flex; }
 .game-over h1 { font-size: 3rem; margin-bottom: 24px; }
 .game-over .crew-win { color: #06d6a0; }
 .game-over .impostor-win { color: #ef476f; }
