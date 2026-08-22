@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { env } from "./config/env.js";
 import { createAuthRouter } from "./auth/routes.js";
+import { createStatsRouter } from "./stats/routes.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 
 export function createApp(): express.Application {
@@ -29,6 +30,9 @@ export function createApp(): express.Application {
 
   // Auth routes
   app.use("/api/auth", createAuthRouter());
+
+  // Stats routes (JWT protected)
+  app.use("/api/stats", createStatsRouter());
 
   // Serve client in production
   if (env.isProd) {
