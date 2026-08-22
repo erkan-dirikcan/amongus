@@ -60,7 +60,13 @@ export const KILL_COOLDOWN_MS = 30000;      // 30 seconds
 export const KILL_DISTANCE = 1.5;           // tiles
 export const TASK_INTERACT_DISTANCE = 1.5;  // tiles
 export const TASKS_PER_CREWMATE = 2;
-export const TASK_TYPES = ["wire", "download"] as const;
+export const TASK_TYPES = ["wire", "download", "cardSwipe", "asteroids", "fuel", "medbayScan"] as const;
+
+/** Max instances of the same task type assigned to one player. */
+export const MAX_SAME_TYPE_PER_PLAYER = 2;
+
+/** Duration of the Medbay visual scan (ms). */
+export const MEDBAY_SCAN_DURATION_MS = 15000;
 
 // ─── Meeting constants ─────────────────────────────────────────────────
 
@@ -73,3 +79,32 @@ export const SABOTAGE_COOLDOWN_MS = 30000;
 export const REACTOR_TIMEOUT_MS = 30000;
 export const O2_TIMEOUT_MS = 30000;
 export const VENT_INTERACT_DISTANCE = 1.5;
+
+// ─── Monitor constants (Sub-project 6) ─────────────────────────────────
+
+export const MONITOR_TYPES = ["cameras", "admin", "vitals"] as const;
+export type MonitorType = (typeof MONITOR_TYPES)[number];
+
+/** Client polling interval while a monitor panel is open (ms). */
+export const MONITOR_QUERY_INTERVAL_MS = 1000;
+
+/** Interaction distance for monitor tiles (tiles). */
+export const MONITOR_INTERACT_DISTANCE = 1.5;
+
+/** Rooms shown on the Security Cameras panel. */
+export const CAMERA_ROOMS = ["navigation", "weapons", "storage", "reactor"] as const;
+
+export interface MonitorPosition {
+  id: string;
+  type: MonitorType;
+  room: string;
+  x: number;
+  y: number;
+}
+
+/** Interactable monitor tiles on the map. */
+export const MONITOR_POSITIONS: MonitorPosition[] = [
+  { id: "monitor-cameras", type: "cameras", room: "cafeteria", x: 25, y: 20 },
+  { id: "monitor-admin", type: "admin", room: "admin", x: 25, y: 44 },
+  { id: "monitor-vitals", type: "vitals", room: "medbay", x: 27, y: 15 },
+];

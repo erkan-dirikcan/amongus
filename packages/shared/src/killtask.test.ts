@@ -16,8 +16,8 @@ describe("kill & task constants", () => {
     expect(TASKS_PER_CREWMATE).toBe(2);
   });
 
-  it("defines 2 task types", () => {
-    expect(TASK_TYPES).toEqual(["wire", "download"]);
+  it("defines 6 task types", () => {
+    expect(TASK_TYPES).toEqual(["wire", "download", "cardSwipe", "asteroids", "fuel", "medbayScan"]);
   });
 
   it("defines task event names", () => {

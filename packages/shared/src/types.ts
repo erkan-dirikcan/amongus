@@ -1,5 +1,7 @@
 // API request/response types shared between client and server
 
+import type { MonitorType } from "./constants.js";
+
 export interface RegisterRequest {
   username: string;
   password: string;
@@ -122,7 +124,7 @@ export const GAME_EVENTS = {
 
 // ─── Task & Kill types ─────────────────────────────────────────────────
 
-export type TaskType = "wire" | "download";
+export type TaskType = "wire" | "download" | "cardSwipe" | "asteroids" | "fuel" | "medbayScan";
 
 export interface TaskClient {
   id: string;
@@ -131,6 +133,8 @@ export interface TaskClient {
   x: number;
   y: number;
   completed: boolean;
+  /** Visual tasks (medbayScan) broadcast an animation to nearby players. */
+  isVisual?: boolean;
 }
 
 export interface TasksAssignedPayload {
@@ -273,4 +277,57 @@ export const VENT_SABOTAGE_EVENTS = {
   REPAIR_COMMS: "game:repairComms",
   REACTOR_HOLD: "game:reactorHold",
   O2_CODE: "game:o2Code",
+} as const;
+
+// ─── Monitor & Visual task types (Sub-project 6) ───────────────────────
+
+/** One camera card: players currently visible + corpses in that room. */
+export interface CameraRoomSnapshot {
+  room: string;
+  players: { color: string }[];
+  corpses: { color: string }[];
+}
+
+/** Admin table: live player count per room (vent hiders excluded, corpses counted). */
+export interface AdminRoomCount {
+  room: string;
+  count: number;
+}
+
+/** Vitals: every player's life status. */
+export interface VitalsEntry {
+  userId: string;
+  username: string;
+  isAlive: boolean;
+  /** Seconds since death, when dead. */
+  deadAgoSec?: number;
+}
+
+export type MonitorData =
+  | { type: "cameras"; rooms: CameraRoomSnapshot[] }
+  | { type: "admin"; rooms: AdminRoomCount[] }
+  | { type: "vitals"; players: VitalsEntry[] };
+
+/** Server → client monitor snapshot (or comms-sabotage error). */
+export interface MonitorResultPayload {
+  type: MonitorType;
+  data?: MonitorData;
+  /** Set to "comms" when comms sabotage blinds all monitors. */
+  error?: "comms";
+}
+
+/** game:visualTaskStarted — visual task animation broadcast to same-room players. */
+export interface VisualTaskStartedPayload {
+  userId: string;
+  x: number;
+  y: number;
+  taskType: TaskType;
+  durationMs?: number;
+}
+
+export const MONITOR_EVENTS = {
+  MONITOR_QUERY: "game:monitorQuery",
+  MONITOR_RESULT: "game:monitorResult",
+  VISUAL_TASK_START: "game:visualTaskStart",
+  VISUAL_TASK_STARTED: "game:visualTaskStarted",
 } as const;
