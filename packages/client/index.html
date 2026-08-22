@@ -50,6 +50,7 @@
               <button id="btn-join">Katıl</button>
             </div>
           </div>
+          <button id="btn-stats" class="secondary menu-stats">📊 İstatistikler</button>
           <p id="menu-error" class="error"></p>
         </div>
       </section>
@@ -77,11 +78,19 @@
       <section id="game-screen" class="screen" hidden>
         <div id="game-container"></div>
         <div class="role-badge" id="role-display"></div>
+        <button id="sound-btn" class="sound-btn" title="Sesi aç/kapat">🔊</button>
         <div id="minigame-overlay" class="minigame-overlay" hidden>
           <div class="minigame-card">
             <h3 id="minigame-title"></h3>
             <div id="minigame-content"></div>
           </div>
+        </div>
+        <div id="monitor-panel" class="monitor-panel" hidden>
+          <div class="monitor-header">
+            <h3 id="monitor-title">MONİTÖR</h3>
+            <button id="monitor-close" class="link">✕ Kapat</button>
+          </div>
+          <div id="monitor-content" class="monitor-content"></div>
         </div>
         <div id="task-progress" class="task-progress" hidden>
           Görevler: <span id="task-completed">0</span>/<span id="task-total">0</span>
@@ -118,6 +127,26 @@
             <input id="chat-input" type="text" placeholder="Mesaj yaz..." maxlength="200" />
             <button id="chat-send">Gönder</button>
           </div>
+        </div>
+      </section>
+
+      <section id="stats-screen" class="screen" hidden>
+        <div class="card stats-card">
+          <div class="menu-header">
+            <h2>📊 İstatistikler</h2>
+            <button id="btn-stats-back" class="link">← Geri</button>
+          </div>
+          <div id="my-stats" class="my-stats"></div>
+          <h3>🏆 En İyiler</h3>
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead>
+                <tr><th>#</th><th>Oyuncu</th><th>O</th><th>G</th><th>M</th><th>%</th></tr>
+              </thead>
+              <tbody id="leaderboard-body"></tbody>
+            </table>
+          </div>
+          <p id="stats-error" class="error"></p>
         </div>
       </section>
     </div>

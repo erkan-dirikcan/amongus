@@ -6,7 +6,12 @@ export function initMenuScreen(): void {
   const logoutBtn = document.getElementById("btn-logout")!;
   const createBtn = document.getElementById("btn-create")!;
   const joinBtn = document.getElementById("btn-join")!;
+  const statsBtn = document.getElementById("btn-stats")!;
   const errorEl = document.getElementById("menu-error")!;
+
+  statsBtn.addEventListener("click", () => {
+    showScreen("stats");
+  });
 
   logoutBtn.addEventListener("click", async () => {
     try {

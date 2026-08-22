@@ -51,11 +51,13 @@ export interface GameTickPayload {
 
 export interface TaskClient {
   id: string;
-  type: "wire" | "download";
+  type: "wire" | "download" | "cardSwipe" | "asteroids" | "fuel" | "medbayScan";
   room: string;
   x: number;
   y: number;
   completed: boolean;
+  /** Visual tasks (medbayScan) broadcast an animation while running. */
+  isVisual?: boolean;
 }
 
 export interface CorpseClient {

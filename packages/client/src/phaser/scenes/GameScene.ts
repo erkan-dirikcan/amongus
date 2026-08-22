@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { getSocket } from "../../network/socket.js";
 import { TILE_SIZE, CAMERA_ZOOM, DIAGONAL_FACTOR, INPUT_SEND_INTERVAL_MS, INTERP_FACTOR } from "../config.js";
 import type { GameStartedPayload, GameTickPayload, TaskClient } from "../../types.js";
+import { MONITOR_POSITIONS, MONITOR_INTERACT_DISTANCE, MEDBAY_SCAN_DURATION_MS } from "../../constants.js";
 
 const COLOR_HEX: Record<string, number> = {
   red: 0xe53935, blue: 0x1e88e5, green: 0x43a047, pink: 0xec407a,
@@ -123,17 +124,41 @@ export class GameScene extends Phaser.Scene {
 
     this.interactPrompt = document.getElementById("interact-prompt")!;
 
-    // E key for task interaction
+    // E key for task interaction / report / monitor
     this.input.keyboard!.on("keydown-E", () => {
+      const corpse = this.findNearestCorpse();
+      if (corpse) {
+        getSocket().emit("game:report", { corpseId: corpse.id });
+        return;
+      }
       this.tryInteractTask();
     });
 
     // Render task sprites (small colored squares at task locations)
+    const TASK_COLORS: Record<string, number> = {
+      wire: 0xffd166,
+      download: 0x06d6a0,
+      cardSwipe: 0xef476f,
+      asteroids: 0x118ab2,
+      fuel: 0xf78c6b,
+      medbayScan: 0x9d4edd,
+    };
     for (const task of this.tasks) {
-      const rect = this.add.rectangle(task.x * TILE_SIZE, task.y * TILE_SIZE, 16, 16, task.type === "wire" ? 0xffd166 : 0x06d6a0);
+      const rect = this.add.rectangle(task.x * TILE_SIZE, task.y * TILE_SIZE, 16, 16, TASK_COLORS[task.type] ?? 0x06d6a0);
       rect.setStrokeStyle(2, 0xffffff);
       this.taskSprites.set(task.id, rect);
     }
+
+    // Render monitor tiles (small screens)
+    for (const mon of MONITOR_POSITIONS) {
+      const rect = this.add.rectangle(mon.x * TILE_SIZE, mon.y * TILE_SIZE, 20, 16, 0x22223b);
+      rect.setStrokeStyle(2, 0x4ea8de);
+      const label = this.add.text(mon.x * TILE_SIZE, mon.y * TILE_SIZE + 14, "📺", { fontSize: "10px" });
+      label.setOrigin(0.5);
+    }
+
+    // Visual task animation (medbayScan) from other players
+    window.addEventListener("game:visualTaskStarted", this.onVisualTaskStarted);
 
     // Listen for corpse events
     window.addEventListener("game:corpse", this.onCorpseEvent);
@@ -281,16 +306,33 @@ export class GameScene extends Phaser.Scene {
         break;
       }
     }
+    const nearMonitor = this.findNearestMonitor() !== undefined;
     const nearCorpse = this.findNearestCorpse();
-    if (nearTask || nearCorpse) {
+    if (nearTask || nearCorpse || nearMonitor) {
       this.interactPrompt.hidden = false;
-      this.interactPrompt.textContent = nearCorpse ? "📢 E - Raporla" : "E - Görev Yap";
+      this.interactPrompt.textContent = nearCorpse ? "📢 E - Raporla" : nearMonitor && !nearTask ? "📺 E - İncele" : "E - Görev Yap";
       if (nearCorpse) this.reportBtn!.hidden = false;
       else this.reportBtn!.hidden = true;
     } else {
       this.interactPrompt.hidden = true;
       this.reportBtn!.hidden = true;
     }
+  }
+
+  private findNearestMonitor(): { id: string; type: string } | undefined {
+    if (!this.myPlayer) return undefined;
+    const myX = this.myPlayer.x / TILE_SIZE;
+    const myY = this.myPlayer.y / TILE_SIZE;
+    let nearest: { id: string; type: string } | undefined;
+    let nearestDist = Infinity;
+    for (const m of MONITOR_POSITIONS) {
+      const dist = Math.sqrt((m.x - myX) ** 2 + (m.y - myY) ** 2);
+      if (dist <= MONITOR_INTERACT_DISTANCE && dist < nearestDist) {
+        nearest = { id: m.id, type: m.type };
+        nearestDist = dist;
+      }
+    }
+    return nearest;
   }
 
   private updateKillButton(time: number): void {
@@ -306,23 +348,44 @@ export class GameScene extends Phaser.Scene {
     if (!this.myPlayer) return;
     const myX = this.myPlayer.x / TILE_SIZE;
     const myY = this.myPlayer.y / TILE_SIZE;
+
+    // Monitors take over when no task is in range
+    const monitor = this.findNearestMonitor();
+    let nearTask = false;
+    for (const task of this.tasks) {
+      if (!task.completed) {
+        const dist = Math.sqrt((task.x - myX) ** 2 + (task.y - myY) ** 2);
+        if (dist <= 1.5) {
+          nearTask = true;
+          break;
+        }
+      }
+    }
+    if (monitor && !nearTask) {
+      window.dispatchEvent(new CustomEvent("game:monitorOpen", { detail: { type: monitor.type } }));
+      return;
+    }
+
     for (const task of this.tasks) {
       if (task.completed) continue;
       const dist = Math.sqrt((task.x - myX) ** 2 + (task.y - myY) ** 2);
       if (dist <= 1.5) {
-        // Open minigame
+        // Open the minigame matching the task type
+        const onDone = (taskId: string) => {
+          getSocket().emit("game:taskComplete", { taskId });
+        };
         if (task.type === "wire") {
-          import("../../minigames/wire.js").then(({ openWireMinigame }) => {
-            openWireMinigame(task.id, (taskId) => {
-              getSocket().emit("game:taskComplete", { taskId });
-            });
-          });
+          import("../../minigames/wire.js").then(({ openWireMinigame }) => openWireMinigame(task.id, onDone));
+        } else if (task.type === "cardSwipe") {
+          import("../../minigames/cardswipe.js").then(({ openCardSwipeMinigame }) => openCardSwipeMinigame(task.id, onDone));
+        } else if (task.type === "asteroids") {
+          import("../../minigames/asteroids.js").then(({ openAsteroidsMinigame }) => openAsteroidsMinigame(task.id, onDone));
+        } else if (task.type === "fuel") {
+          import("../../minigames/fuel.js").then(({ openFuelMinigame }) => openFuelMinigame(task.id, onDone));
+        } else if (task.type === "medbayScan") {
+          import("../../minigames/medbayscan.js").then(({ openMedbayScanMinigame }) => openMedbayScanMinigame(task.id, onDone));
         } else {
-          import("../../minigames/download.js").then(({ openDownloadMinigame }) => {
-            openDownloadMinigame(task.id, (taskId) => {
-              getSocket().emit("game:taskComplete", { taskId });
-            });
-          });
+          import("../../minigames/download.js").then(({ openDownloadMinigame }) => openDownloadMinigame(task.id, onDone));
         }
         break;
       }
@@ -437,6 +500,32 @@ export class GameScene extends Phaser.Scene {
     }
   };
 
+  /** Another player started a visual task (medbayScan) in my room — green ring + label. */
+  private onVisualTaskStarted = (e: Event): void => {
+    const detail = (e as CustomEvent).detail as { userId: string; x: number; y: number; taskType: string };
+    const px = detail.x * TILE_SIZE;
+    const py = detail.y * TILE_SIZE;
+
+    const ring = this.add.circle(px, py, 18);
+    ring.setStrokeStyle(3, 0x06d6a0);
+    const label = this.add.text(px, py - 34, "DOĞRULANIYOR", { fontSize: "10px", color: "#06d6a0" });
+    label.setOrigin(0.5);
+
+    this.tweens.add({
+      targets: ring,
+      scale: { from: 0.7, to: 1.3 },
+      alpha: { from: 1, to: 0.4 },
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.time.delayedCall(MEDBAY_SCAN_DURATION_MS, () => {
+      ring.destroy();
+      label.destroy();
+    });
+  };
+
   shutdown(): void {
     window.removeEventListener("game:corpse", this.onCorpseEvent);
     window.removeEventListener("game:killResult", this.onKillResult);
@@ -445,6 +534,8 @@ export class GameScene extends Phaser.Scene {
     window.removeEventListener("game:ventState", this.onVentState);
     window.removeEventListener("game:sabotageStarted", this.onSabotageStarted);
     window.removeEventListener("game:sabotageFixed", this.onSabotageFixed);
+    window.removeEventListener("game:visualTaskStarted", this.onVisualTaskStarted);
+    window.dispatchEvent(new CustomEvent("game:monitorClose"));
     if (this.killBtn) this.killBtn.hidden = true;
     if (this.reportBtn) this.reportBtn.hidden = true;
     if (this.interactPrompt) this.interactPrompt.hidden = true;
