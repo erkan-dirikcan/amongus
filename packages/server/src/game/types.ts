@@ -17,6 +17,8 @@ export interface Task {
   y: number;
   assignedTo: string;
   completed: boolean;
+  /** Visual tasks (medbayScan) broadcast an animation while running. */
+  isVisual?: boolean;
 }
 
 export interface Corpse {
@@ -33,6 +35,8 @@ export interface GamePlayer {
   color: string;
   role: PlayerRole;
   isAlive: boolean;
+  /** Timestamp of death (kill or ejection) — used by the Vitals monitor. */
+  diedAt?: number;
   x: number;
   y: number;
   inputDx: number;

@@ -146,7 +146,7 @@ export function registerLobbyHandlers(
         if (p.role !== "CREW") continue;
         const playerTasks = [...gameMatch.tasks.values()]
           .filter((t) => t.assignedTo === p.userId)
-          .map((t) => ({ id: t.id, type: t.type, room: t.room, x: t.x, y: t.y, completed: t.completed }));
+          .map((t) => ({ id: t.id, type: t.type, room: t.room, x: t.x, y: t.y, completed: t.completed, isVisual: t.isVisual }));
         io.to(p.socketId).emit(TASK_EVENTS.TASKS_ASSIGNED, {
           tasks: playerTasks,
           total: gameMatch.taskProgress.total,

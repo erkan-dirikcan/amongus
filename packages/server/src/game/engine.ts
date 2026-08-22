@@ -233,6 +233,7 @@ export class GameEngine {
 
     // Kill the victim
     nearest.isAlive = false;
+    nearest.diedAt = Date.now();
     const now2 = Date.now();
     killer.killCooldownUntil = now2 + KILL_COOLDOWN_MS;
 
@@ -311,6 +312,32 @@ export class GameEngine {
     return { success: true, taskProgress: match.taskProgress, taskId };
   }
 
+  /**
+   * Validate that a visual task (medbayScan) may start — crewmate, own task,
+   * uncompleted, in range. Returns the task position so the handler can
+   * broadcast the animation to same-room players.
+   */
+  startVisualTask(matchId: string, userId: string, taskId: string): { success: boolean; x?: number; y?: number; message?: string } {
+    const match = this.matches.get(matchId);
+    if (!match) return { success: false, message: "Match not found" };
+
+    const player = match.players.get(userId);
+    if (!player) return { success: false, message: "Player not found" };
+    if (player.role !== "CREW") return { success: false, message: "Only crewmates can start visual tasks" };
+    if (!player.isAlive) return { success: false, message: "Dead players cannot start tasks" };
+
+    const task = match.tasks.get(taskId);
+    if (!task) return { success: false, message: "Task not found" };
+    if (task.assignedTo !== userId) return { success: false, message: "Task not assigned to you" };
+    if (!task.isVisual) return { success: false, message: "Not a visual task" };
+    if (task.completed) return { success: false, message: "Task already completed" };
+
+    const dist = Math.sqrt((task.x - player.x) ** 2 + (task.y - player.y) ** 2);
+    if (dist > TASK_INTERACT_DISTANCE) return { success: false, message: "Too far from task" };
+
+    return { success: true, x: player.x, y: player.y };
+  }
+
   report(matchId: string, userId: string, corpseId: string): { success: boolean; message: string; meetingStarted?: boolean } {
     const match = this.matches.get(matchId);
     if (!match) return { success: false, message: "Match not found" };
@@ -379,6 +406,7 @@ export class GameEngine {
       const ejected = match.players.get(result.ejected);
       if (ejected) {
         ejected.isAlive = false;
+        ejected.diedAt = Date.now();
         ejectedRole = ejected.role;
       }
     }

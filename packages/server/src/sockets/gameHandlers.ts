@@ -1,7 +1,9 @@
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
 import type { GameEngine } from "../game/engine.js";
-import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS, VENT_SABOTAGE_EVENTS } from "@amongus/shared";
+import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS, VENT_SABOTAGE_EVENTS, MONITOR_EVENTS, MONITOR_TYPES } from "@amongus/shared";
+import type { MonitorType } from "@amongus/shared";
 import { prisma } from "../db/prisma.js";
+import { getMonitorSnapshot, roomAt } from "../game/monitors.js";
 
 export function registerGameHandlers(
   io: ExtendedIo,
@@ -210,6 +212,45 @@ export function registerGameHandlers(
     }
   });
 
+  // Monitor snapshot polling (cameras/admin/vitals) — server holds no extra state
+  socket.on(MONITOR_EVENTS.MONITOR_QUERY, (payload: unknown) => {
+    const type = (payload as any)?.type;
+    if (!MONITOR_TYPES.includes(type)) return;
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const snapshot = getMonitorSnapshot(match, type as MonitorType, user.userId);
+    if ("error" in snapshot) {
+      socket.emit(MONITOR_EVENTS.MONITOR_RESULT, { type, error: snapshot.error });
+    } else {
+      socket.emit(MONITOR_EVENTS.MONITOR_RESULT, { type, data: snapshot });
+    }
+  });
+
+  // Visual task (medbayScan) started — broadcast animation to same-room players
+  socket.on(MONITOR_EVENTS.VISUAL_TASK_START, (payload: unknown) => {
+    if (typeof payload !== "object" || payload === null || typeof (payload as any).taskId !== "string") return;
+    const { taskId } = payload as { taskId: string };
+    const match = engine.findMatchByUser(user.userId);
+    if (!match) return;
+    const result = engine.startVisualTask(match.matchId, user.userId, taskId);
+    if (!result.success) return;
+
+    const task = match.tasks.get(taskId)!;
+    const scannerRoom = roomAt(result.x!, result.y!);
+    const startedPayload = {
+      userId: user.userId,
+      x: result.x,
+      y: result.y,
+      taskType: task.type,
+    };
+    for (const p of match.players.values()) {
+      if (p.userId === user.userId) continue;
+      // Only players in the same room see the animation
+      if (roomAt(p.x, p.y) !== scannerRoom) continue;
+      if (p.socketId) io.to(p.socketId).emit(MONITOR_EVENTS.VISUAL_TASK_STARTED, startedPayload);
+    }
+  });
+
   // Helper: emit meetingStarted payload to all clients in the match room.
   // Defined as a closure inside registerGameHandlers so it has access to `engine`.
   function emitMeetingStarted(
@@ -252,6 +293,7 @@ export async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId:
     // Update UserStats for each player
     for (const player of match.players.values()) {
       const isWin = (winner === "CREW" && player.role === "CREW") || (winner === "IMPOSTOR" && player.role === "IMPOSTOR");
+      const completedTasks = [...match.tasks.values()].filter((t) => t.assignedTo === player.userId && t.completed).length;
       await prisma.userStats.upsert({
         where: { userId: player.userId },
         create: {
@@ -259,11 +301,13 @@ export async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId:
           gamesPlayed: 1,
           wins: isWin ? 1 : 0,
           losses: isWin ? 0 : 1,
+          tasksCompleted: completedTasks,
         },
         update: {
           gamesPlayed: { increment: 1 },
           wins: { increment: isWin ? 1 : 0 },
           losses: { increment: isWin ? 0 : 1 },
+          tasksCompleted: { increment: completedTasks },
         },
       });
     }

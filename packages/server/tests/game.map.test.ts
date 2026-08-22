@@ -35,4 +35,24 @@ describe("map data", () => {
     }
     expect(walkable).toBeGreaterThan(50); // cafeteria should have lots of floor
   });
+
+  it("has medbay room above cafeteria, connected by a corridor", () => {
+    // Medbay: x 20-29, y 12-17 — fully walkable
+    for (let y = 12; y < 18; y++) {
+      for (let x = 20; x < 30; x++) {
+        expect(WALL_GRID[y][x]).toBe(false);
+      }
+    }
+    // Corridor from medbay down to cafeteria at x=24
+    for (let y = 18; y < 20; y++) {
+      expect(WALL_GRID[y][24]).toBe(false);
+      expect(WALL_GRID[y][25]).toBe(false);
+    }
+  });
+
+  it("medbay monitor and scan task tiles are walkable", () => {
+    // Vitals monitor (27,15) and medbayScan task (22,15)
+    expect(WALL_GRID[15][27]).toBe(false);
+    expect(WALL_GRID[15][22]).toBe(false);
+  });
 });

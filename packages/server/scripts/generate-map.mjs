@@ -54,6 +54,7 @@ function corridorV(grid, y1, y2, x, tile = TILE.FLOOR_CORRIDOR) {
 // Define rooms: [name, x, y, width, height]
 const rooms = [
   ["cafeteria", 20, 20, 10, 10],   // center (spawn)
+  ["medbay", 20, 12, 10, 6],       // above cafeteria
   ["weapons", 35, 18, 8, 6],
   ["navigation", 38, 28, 6, 8],
   ["o2", 35, 40, 6, 6],
@@ -75,6 +76,7 @@ corridorV(ground, 20, 40, 24); // top→bottom through cafeteria col
 corridorH(ground, 30, 38, 30); // to navigation/o2
 corridorH(ground, 13, 20, 20); // to storage
 corridorV(ground, 28, 40, 26); // to admin
+corridorV(ground, 17, 20, 24); // medbay → cafeteria
 
 // Compute walls: any tile that's still WALL in ground = wall
 for (let r = 0; r < MAP_HEIGHT; r++) {
