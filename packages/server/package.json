@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "local-db": "node scripts/local-db.mjs",
+    "smoke": "tsx scripts/smoke.mjs"
   },
   "dependencies": {
     "@amongus/shared": "*",
@@ -36,6 +38,7 @@
     "@types/node": "^24.0.0",
     "@types/supertest": "^6.0.2",
     "canvas": "^3.2.3",
+    "embedded-postgres": "^18.4.0-beta.17",
     "socket.io-client": "^4.7.5",
     "supertest": "^7.0.0",
     "tsx": "^4.19.0",

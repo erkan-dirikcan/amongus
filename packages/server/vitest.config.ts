@@ -6,5 +6,8 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./tests/setup.ts"],
     testTimeout: 15000,
+    // DB-backed suites share one test database with per-test resets —
+    // parallel files would wipe each other's rows mid-test.
+    fileParallelism: false,
   },
 });

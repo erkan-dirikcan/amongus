@@ -76,21 +76,21 @@ describe("GET /api/stats/leaderboard", () => {
 
     await setup("low", 10, 1); // 1 win, 10%
     await setup("high", 10, 5); // 5 wins → top
-    await setup("mid-a", 2, 1); // 1 win, 50%
-    await setup("mid-b", 4, 1); // 1 win, 25%
+    await setup("mid_a", 2, 1); // 1 win, 50%
+    await setup("mid_b", 4, 1); // 1 win, 25%
 
     const res = await agent.get("/api/stats/leaderboard");
     expect(res.status).toBe(200);
     const names = res.body.entries.map((e: any) => e.username);
     // wins desc; among 1-win players, higher winRate first
-    expect(names).toEqual(["high", "mid-a", "mid-b", "low"]);
+    expect(names).toEqual(["high", "mid_a", "mid_b", "low"]);
     expect(res.body.entries[0].winRate).toBe(50);
   });
 
   it("respects the limit parameter", async () => {
     const agent = await registerAndLogin("viewer");
     for (let i = 0; i < 5; i++) {
-      const a = await registerAndLogin(`p${i}`);
+      const a = await registerAndLogin(`player${i}`);
       const me = await a.get("/api/auth/me");
       await testPrisma.userStats.update({
         where: { userId: me.body.user.id },

@@ -14,11 +14,26 @@ Tarayıcıdan: http://localhost:3000
 
 ## Development
 
-Gereksinimler: Node.js 24+, npm 11+
+Gereksinimler: Node.js 24+, npm 11+ (Docker veya sistem Postgres gerekmez)
 
 ```bash
 npm install
-npm run dev
+
+# 1) Gömülü yerel Postgres'i başlat (ilk çalıştırmada cluster + migrasyonları kurar)
+npm run local-db -w @amongus/server
+
+# 2) Ayrı terminallerde server + client
+npm run dev -w @amongus/server   # http://localhost:3000
+npm run dev -w @amongus/client   # http://localhost:5173 (API/socket proxy'li)
+```
+
+Veriler `.local/pg` altında kalıcıdır; sıfırdan başlamak için
+`node packages/server/scripts/local-db.mjs --fresh` çalıştırın.
+
+Uçtan uca oyun döngüsü smoke testi (server ayakta olmalı):
+
+```bash
+npm run smoke -w @amongus/server
 ```
 
 ## Documentation
