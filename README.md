@@ -111,4 +111,12 @@ docker compose down -v       # veritabanı datasını da siler
 - 4 sabotaj türü (Lights, Comms, Reactor, O2)
 - Repair mini-oyunları
 
-🎉 **PROJE TAMAMLANDI!** Tam oynanabilir Among Us klonu.
+✅ **Sub-project 6:** Monitörler + Görevler + Ses + İstatistik
+- 3 gözetim monitörü: Security cams (Kafeterya), Admin table (Yönetim), Vitals (Medbay)
+- Comms sabotajı monitörleri kör eder (SIGNAL LOST)
+- Medbay odası + 4 yeni görev: kart okutma, asteroitler, yakıt, Medbay taraması
+- Medbay scan görsel görev — aynı odadakiler animasyonu görür
+- Web Audio sentez ses sistemi (kill, alarm, eject, zafer... ) + ambient drone, kalıcı mute
+- 📊 İstatistik sayfası: profil kartı + leaderboard (`/api/stats/*`)
+
+🎉 **PROJE TAMAMLANDI!** Tam oynanabilir Among Us klonu (monitörler, ses ve istatistiklerle).
