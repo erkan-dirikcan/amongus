@@ -6,9 +6,11 @@ import { setupSocketServer } from "../src/sockets/index.js";
 import { signToken } from "../src/auth/jwt.js";
 import { AUTH_COOKIE_NAME, LOBBY_EVENTS } from "@amongus/shared";
 import { LobbyManager } from "../src/lobby/manager.js";
+import { GameEngine } from "../src/game/engine.js";
 
 const httpServer = createServer(createApp());
 const mgr = new LobbyManager();
+const engine = new GameEngine();
 const port = 0;
 let actualPort = 0;
 
@@ -18,7 +20,7 @@ let actualPort = 0;
 beforeAll(
   () =>
     new Promise<void>((resolve) => {
-      setupSocketServer(httpServer, mgr);
+      setupSocketServer(httpServer, mgr, engine);
       httpServer.listen(0, () => {
         const addr = httpServer.address();
         actualPort = typeof addr === "object" && addr ? addr.port : 0;

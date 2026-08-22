@@ -7,12 +7,14 @@ import { setupSocketServer } from "../src/sockets/index.js";
 import { signToken } from "../src/auth/jwt.js";
 import { AUTH_COOKIE_NAME } from "@amongus/shared";
 import { LobbyManager } from "../src/lobby/manager.js";
+import { GameEngine } from "../src/game/engine.js";
 
 const httpServer = createServer(createApp());
 const mgr = new LobbyManager();
+const engine = new GameEngine();
 
 beforeAll(() => {
-  setupSocketServer(httpServer, mgr);
+  setupSocketServer(httpServer, mgr, engine);
   httpServer.listen(0); // random port
 });
 

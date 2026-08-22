@@ -75,7 +75,7 @@ export function setupSocketServer(
 
   // Start tick loop (20Hz)
   const TICK_MS = 50;
-  setInterval(() => {
+  const tickInterval = setInterval(() => {
     for (const matchId of gameEngine.getActiveMatchIds()) {
       // Check sabotage timeout
       const sabWinner = gameEngine.checkSabotageWin(matchId);
@@ -113,6 +113,9 @@ export function setupSocketServer(
       }
     }
   }, TICK_MS);
+
+  // Stop the tick loop when the server shuts down (graceful exit / test teardown)
+  httpServer.on("close", () => clearInterval(tickInterval));
 
   return io;
 }
