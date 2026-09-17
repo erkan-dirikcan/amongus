@@ -57,7 +57,8 @@ function waitEvent(client, event, predicate, timeout = 20000) {
 
 // ---- BFS pathfinding over WALL_GRID (true = wall) ----
 function nearestWalkable(x, y) {
-  x = Math.round(x); y = Math.round(y);
+  // Server collision uses Math.floor: tile N spans [N, N+1)
+  x = Math.floor(x); y = Math.floor(y);
   if (!WALL_GRID[y]?.[x]) return [x, y];
   for (let r = 1; r <= 3; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -129,7 +130,10 @@ function walkTo(client, userId, getPos, tx, ty, label) {
         wp = 1;
       }
       // path may be stale if we were pushed; replan when far off-path
-      const target = path[Math.min(wp, path.length - 1)];
+      // Aim at tile centers: with the 0.3 hitbox, aiming at a corner (e.g. x=24.0)
+      // clips the wall of the neighbouring tile in 2-wide corridors.
+      const tile = path[Math.min(wp, path.length - 1)];
+      const target = { x: tile.x + 0.5, y: tile.y + 0.5 };
       const dist = Math.hypot(target.x - pos.x, target.y - pos.y);
       const distFinal = Math.hypot(tx - pos.x, ty - pos.y);
       if (distFinal <= 1.3) {

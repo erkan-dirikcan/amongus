@@ -2,7 +2,7 @@
 // Run: node scripts/generate-map.mjs
 // Outputs: packages/client/public/assets/map.json
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +12,7 @@ const MAP_HEIGHT = 50;
 
 // Tile IDs: 0=empty, 1=wall, 2=floor(corridor), 3=floor(room), 4=spawn
 const TILE = { EMPTY: 0, WALL: 1, FLOOR_CORRIDOR: 2, FLOOR_ROOM: 3, SPAWN: 4 };
+const FIRST_GID = 1;
 
 // Initialize grid with walls
 const ground = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(TILE.WALL));
@@ -69,21 +70,55 @@ for (const [name, x, y, w, h] of rooms) {
   fillRoom(ground, x, y, w, h, name === "cafeteria" ? TILE.SPAWN : TILE.FLOOR_ROOM);
 }
 
-// Connect rooms with corridors (horizontal/vertical)
+// Connect rooms with corridors (horizontal/vertical). Every room must be
+// reachable on foot from the cafeteria spawn — the generator asserts this
+// below, so a missing corridor fails loudly instead of silently stranding
+// tasks and vents in an unreachable room.
 // Cafeteria center ~ (25, 25)
-corridorH(ground, 20, 35, 22); // left→right through cafeteria row
-corridorV(ground, 20, 40, 24); // top→bottom through cafeteria col
-corridorH(ground, 30, 38, 30); // to navigation/o2
-corridorH(ground, 13, 20, 20); // to storage
-corridorV(ground, 28, 40, 26); // to admin
+corridorH(ground, 20, 35, 22); // cafeteria → weapons (main hallway)
+corridorV(ground, 20, 40, 24); // medbay → cafeteria → admin (central spine)
+corridorV(ground, 28, 40, 26); // widen the spine to admin
 corridorV(ground, 17, 20, 24); // medbay → cafeteria
+corridorH(ground, 13, 20, 20); // storage → cafeteria
+corridorH(ground, 26, 38, 30); // central spine → navigation
+corridorV(ground, 23, 28, 40); // weapons → navigation
+corridorV(ground, 23, 28, 8);  // storage → electrical
+corridorV(ground, 35, 40, 9);  // electrical → reactor
+corridorH(ground, 13, 22, 42); // reactor → admin
+corridorH(ground, 29, 35, 42); // admin → o2
+corridorV(ground, 36, 39, 40); // navigation → o2
 
 // Compute walls: any tile that's still WALL in ground = wall
 for (let r = 0; r < MAP_HEIGHT; r++) {
   for (let c = 0; c < MAP_WIDTH; c++) {
-    walls[r][c] = ground[r][c] === TILE.WALL ? 1 : 0;
+    walls[r][c] = ground[r][c] === TILE.WALL ? 1 : 0; // 1 = wall (boolean grid for server)
     wallGrid[r][c] = ground[r][c] === TILE.WALL;
   }
+}
+
+// Sanity check: flood-fill from spawn and require every room tile to be reachable
+{
+  const seen = new Set(["25,25"]);
+  const queue = [[25, 25]];
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (wallGrid[ny]?.[nx] === false && !seen.has(`${nx},${ny}`)) {
+        seen.add(`${nx},${ny}`);
+        queue.push([nx, ny]);
+      }
+    }
+  }
+  const stranded = rooms.filter(([, x, y, w, h]) => {
+    for (let r = y; r < y + h; r++) for (let c = x; c < x + w; c++) if (!seen.has(`${c},${r}`)) return true;
+    return false;
+  }).map(([name]) => name);
+  if (stranded.length) {
+    console.error("[FAIL] rooms not fully reachable from spawn:", stranded.join(", "));
+    process.exit(1);
+  }
+  console.log(`[OK] all ${rooms.length} rooms reachable (${seen.size} walkable tiles)`);
 }
 
 // Build Tiled JSON
@@ -95,18 +130,22 @@ const tiledMap = {
   tileheight: 32,
   orientation: "orthogonal",
   renderorder: "right-down",
+  // Phaser does not support external tilesets ("source": "tileset.json") —
+  // it logs "External tilesets unsupported" and addTilesetImage() returns
+  // null, so nothing renders. Embed the tileset definition instead.
   tilesets: [
     {
-      firstgid: 1,
-      source: "tileset.json",
-      name: "tileset",
+      firstgid: FIRST_GID,
+      ...JSON.parse(readFileSync(resolve(__dirname, "../../client/public/assets/tileset.json"), "utf8")),
     },
   ],
   layers: [
     {
       name: "Ground",
       type: "tilelayer",
-      data: ground.flat().map((t) => (t === TILE.WALL ? 0 : t === TILE.FLOOR_CORRIDOR ? 2 : t === TILE.FLOOR_ROOM ? 3 : t === TILE.SPAWN ? 4 : 0)),
+      // Tiled gids = tileset tile index + firstgid (1); gid 0 = no tile.
+      // Tileset order (generate-sprites.mjs): 0 empty, 1 wall, 2 corridor, 3 room, 4 spawn.
+      data: ground.flat().map((t) => (t === TILE.WALL ? 0 : t + FIRST_GID)),
       width: MAP_WIDTH,
       height: MAP_HEIGHT,
       visible: true,
@@ -115,7 +154,7 @@ const tiledMap = {
     {
       name: "Walls",
       type: "tilelayer",
-      data: walls.flat(),
+      data: walls.flat().map((w) => (w ? TILE.WALL + FIRST_GID : 0)),
       width: MAP_WIDTH,
       height: MAP_HEIGHT,
       visible: true,
