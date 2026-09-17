@@ -246,10 +246,9 @@ export class GameScene extends Phaser.Scene {
       this.lastDy = dy;
     }
 
-    // 4. Interpolate other players
+    // 4. Interpolate other players; keep every name label (mine included) on its sprite
     for (const [userId, ps] of Object.entries(this.playerSprites)) {
-      if (userId === this.myUserId) continue;
-      if (ps.targetX !== undefined) {
+      if (userId !== this.myUserId && ps.targetX !== undefined) {
         ps.sprite.x = Phaser.Math.Linear(ps.sprite.x, ps.targetX, INTERP_FACTOR);
         ps.sprite.y = Phaser.Math.Linear(ps.sprite.y, ps.targetY!, INTERP_FACTOR);
       }

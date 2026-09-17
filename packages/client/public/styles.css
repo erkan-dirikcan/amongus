@@ -4,6 +4,14 @@
   padding: 0;
 }
 
+/* The `hidden` attribute must win over any class-level `display: flex/grid/block`
+   below (kill-btn, minigame-overlay, sabotage-menu, ...). Without this the UA
+   `[hidden] { display: none }` rule loses on specificity and "hidden" overlays
+   render on top of the game. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: "Segoe UI", system-ui, sans-serif;
   background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 100%);
@@ -271,10 +279,9 @@ button.link {
 }
 .game-over {
   position: fixed; inset: 0; background: rgba(0,0,0,0.9);
-  display: none; flex-direction: column; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 300;
 }
-.game-over:not([hidden]) { display: flex; }
 .game-over h1 { font-size: 3rem; margin-bottom: 24px; }
 .game-over .crew-win { color: #06d6a0; }
 .game-over .impostor-win { color: #ef476f; }
@@ -352,7 +359,6 @@ button.link {
   border-radius: 12px; padding: 20px; z-index: 210;
   min-width: 380px; max-width: 560px; max-height: 70vh; overflow-y: auto;
 }
-.monitor-panel:not([hidden]) { display: block; }
 .monitor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .monitor-header h3 { color: #4ea8de; margin: 0; }
 .monitor-content { color: #fff; }
