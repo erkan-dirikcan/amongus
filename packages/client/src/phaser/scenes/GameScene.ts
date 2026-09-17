@@ -1,20 +1,41 @@
 import Phaser from "phaser";
 import { getSocket } from "../../network/socket.js";
-import { TILE_SIZE, CAMERA_ZOOM, DIAGONAL_FACTOR, INPUT_SEND_INTERVAL_MS, INTERP_FACTOR } from "../config.js";
+import { TILE_SIZE, cameraZoomFor, DIAGONAL_FACTOR, INPUT_SEND_INTERVAL_MS, INTERP_FACTOR } from "../config.js";
 import type { GameStartedPayload, GameTickPayload, TaskClient } from "../../types.js";
-import { MONITOR_POSITIONS, MONITOR_INTERACT_DISTANCE, MEDBAY_SCAN_DURATION_MS } from "../../constants.js";
-
-const COLOR_HEX: Record<string, number> = {
-  red: 0xe53935, blue: 0x1e88e5, green: 0x43a047, pink: 0xec407a,
-  orange: 0xfb8c00, yellow: 0xfdd835, black: 0x212121, white: 0xfafafa,
-  purple: 0x8e24aa, brown: 0x795548, cyan: 0x00acc1, lime: 0xc0ca33,
-};
+import {
+  MONITOR_POSITIONS, MONITOR_INTERACT_DISTANCE, MEDBAY_SCAN_DURATION_MS,
+  ROOMS, VENT_POSITIONS, VENT_INTERACT_DISTANCE, EMERGENCY_BUTTON, EMERGENCY_BUTTON_DISTANCE,
+} from "../../constants.js";
+import { playerKey, playerFrame, DEAD_FRAME, createPlayerAnimations, type Dir } from "../sprites.js";
 
 interface PlayerSprite {
   sprite: Phaser.GameObjects.Sprite;
+  color: string;
   targetX?: number;
   targetY?: number;
   usernameText: Phaser.GameObjects.Text;
+  lastX: number;
+  lastY: number;
+  facing: Dir;
+}
+
+const NAME_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  fontFamily: "Segoe UI, system-ui, sans-serif",
+  fontSize: "11px",
+  color: "#ffffff",
+  stroke: "#000000",
+  strokeThickness: 3,
+};
+
+/** True while a DOM overlay/input should own the keyboard instead of the game. */
+function uiOwnsKeyboard(): boolean {
+  const el = document.activeElement;
+  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || (el as HTMLElement).isContentEditable)) return true;
+  for (const id of ["meeting-screen", "minigame-overlay", "monitor-panel", "vent-menu", "game-over"]) {
+    const node = document.getElementById(id);
+    if (node && !node.hidden) return true;
+  }
+  return false;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -34,7 +55,9 @@ export class GameScene extends Phaser.Scene {
 
   private tasks: TaskClient[] = [];
   private corpses: { id: string; x: number; y: number; sprite: Phaser.GameObjects.Sprite }[] = [];
-  private taskSprites: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private taskSprites: Map<string, Phaser.GameObjects.Container> = new Map();
+  private myColor = "red";
+  private lightsOverlay?: Phaser.GameObjects.Image;
   private killBtn: HTMLButtonElement | null = null;
   private reportBtn: HTMLButtonElement | null = null;
   private interactPrompt: HTMLElement | null = null;
@@ -56,6 +79,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     const payload = this.game.registry.get("gamePayload") as GameStartedPayload;
+    if (import.meta.env.DEV) (window as any).__scene = this; // devtools hook
 
     // 1. Tilemap
     const map = this.make.tilemap({ key: "map" });
@@ -65,37 +89,62 @@ export class GameScene extends Phaser.Scene {
       map.createLayer("Walls", tileset, 0, 0);
     }
 
-    // 2. Player sprites
-    for (const p of payload.players) {
-      const sprite = this.add.sprite(p.userId === this.myUserId ? payload.spawn.x * TILE_SIZE : 25 * TILE_SIZE, p.userId === this.myUserId ? payload.spawn.y * TILE_SIZE : 25 * TILE_SIZE, "player");
-      sprite.tint = COLOR_HEX[p.color] ?? 0xffffff;
-
-      const text = this.add.text(sprite.x, sprite.y - 24, p.username, {
-        fontSize: "10px",
+    // Room labels on the floor
+    for (const room of ROOMS) {
+      const label = this.add.text((room.x + room.w / 2) * TILE_SIZE, (room.y + 1.6) * TILE_SIZE, room.label, {
+        fontFamily: "Segoe UI, system-ui, sans-serif",
+        fontSize: "12px",
+        fontStyle: "bold",
         color: "#ffffff",
       });
-      text.setOrigin(0.5);
+      label.setOrigin(0.5).setAlpha(0.35).setDepth(1);
+    }
 
-      this.playerSprites[p.userId] = { sprite, usernameText: text };
+    // Emergency button on the cafeteria table
+    this.add.image(EMERGENCY_BUTTON.x * TILE_SIZE, EMERGENCY_BUTTON.y * TILE_SIZE, "emergency-button").setDepth(2);
 
-      if (p.userId === this.myUserId) {
+    // Vents (impostors use them; everyone sees the grate)
+    for (const v of VENT_POSITIONS) {
+      this.add.image((v.x + 0.5) * TILE_SIZE, (v.y + 0.5) * TILE_SIZE, "vent").setDepth(2);
+    }
+
+    // 2. Player sprites
+    for (const p of payload.players) {
+      const isMe = p.userId === this.myUserId;
+      const sx = (isMe ? payload.spawn.x : 25) * TILE_SIZE;
+      const sy = (isMe ? payload.spawn.y : 25) * TILE_SIZE;
+      const sprite = this.add.sprite(sx, sy, playerKey(p.color), playerFrame("down", 0));
+      sprite.setDepth(10);
+
+      const text = this.add.text(sprite.x, sprite.y - 22, p.username, NAME_STYLE);
+      text.setOrigin(0.5).setDepth(11);
+
+      this.playerSprites[p.userId] = { sprite, color: p.color, usernameText: text, lastX: sx, lastY: sy, facing: "down" };
+
+      if (isMe) {
         this.myPlayer = sprite;
+        this.myColor = p.color;
       }
     }
 
     // 3. Create animations
-    this.createAnimations();
+    createPlayerAnimations(this);
 
-    // 4. Camera
+    // 4. Camera — zoom follows the canvas size so the visible area stays sane
     if (this.myPlayer) {
-      this.cameras.main.startFollow(this.myPlayer, true);
+      this.cameras.main.startFollow(this.myPlayer, true, 0.15, 0.15);
       this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-      this.cameras.main.setZoom(CAMERA_ZOOM);
     }
+    this.scale.on("resize", (size: Phaser.Structs.Size) => this.applyZoom(size.width, size.height));
 
-    // 5. Input
+    // Lights-out vignette: follows me, big enough to cover the view at any zoom
+    this.lightsOverlay = this.add.image(0, 0, "darkness").setScale(4).setDepth(50).setVisible(false);
+    this.applyZoom(this.scale.width, this.scale.height);
+
+    // 5. Input — no key capture (see config), so typing in chat still works
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.wasd = this.input.keyboard!.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key>;
+    this.wasd = this.input.keyboard!.addKeys("W,A,S,D", false) as Record<string, Phaser.Input.Keyboard.Key>;
+    this.input.keyboard!.clearCaptures();
 
     // 6. Socket listener
     const socket = getSocket();
@@ -126,35 +175,48 @@ export class GameScene extends Phaser.Scene {
 
     // E key for task interaction / report / monitor
     this.input.keyboard!.on("keydown-E", () => {
+      if (uiOwnsKeyboard()) return;
       const corpse = this.findNearestCorpse();
       if (corpse) {
         getSocket().emit("game:report", { corpseId: corpse.id });
         return;
       }
+      const vent = this.findNearestVent();
+      if (vent && this.myRole === "IMPOSTOR") {
+        getSocket().emit("game:ventEnter", { ventId: vent.id });
+        return;
+      }
+      if (this.nearEmergencyButton() && !this.nearAnyTask()) {
+        getSocket().emit("game:emergency");
+        return;
+      }
       this.tryInteractTask();
     });
 
-    // Render task sprites (small colored squares at task locations)
-    const TASK_COLORS: Record<string, number> = {
-      wire: 0xffd166,
-      download: 0x06d6a0,
-      cardSwipe: 0xef476f,
-      asteroids: 0x118ab2,
-      fuel: 0xf78c6b,
-      medbayScan: 0x9d4edd,
-    };
+    // Task consoles with a bobbing arrow above the ones still to do
     for (const task of this.tasks) {
-      const rect = this.add.rectangle(task.x * TILE_SIZE, task.y * TILE_SIZE, 16, 16, TASK_COLORS[task.type] ?? 0x06d6a0);
-      rect.setStrokeStyle(2, 0xffffff);
-      this.taskSprites.set(task.id, rect);
+      const px = (task.x + 0.5) * TILE_SIZE;
+      const py = (task.y + 0.5) * TILE_SIZE;
+      const console_ = this.add.image(0, 0, "task-marker");
+      const arrow = this.add.image(0, -22, "task-arrow");
+      const group = this.add.container(px, py, [console_, arrow]).setDepth(3);
+      this.tweens.add({ targets: arrow, y: -17, duration: 500, yoyo: true, repeat: -1, ease: "Sine.inOut" });
+      if (task.completed) arrow.setVisible(false);
+      this.taskSprites.set(task.id, group);
     }
 
-    // Render monitor tiles (small screens)
+    // Monitors (cameras / admin / vitals)
     for (const mon of MONITOR_POSITIONS) {
-      const rect = this.add.rectangle(mon.x * TILE_SIZE, mon.y * TILE_SIZE, 20, 16, 0x22223b);
-      rect.setStrokeStyle(2, 0x4ea8de);
-      const label = this.add.text(mon.x * TILE_SIZE, mon.y * TILE_SIZE + 14, "📺", { fontSize: "10px" });
-      label.setOrigin(0.5);
+      this.add.image((mon.x + 0.5) * TILE_SIZE, (mon.y + 0.5) * TILE_SIZE, "monitor").setDepth(3);
+    }
+
+    // Bodies that were already on the floor when we (re)joined
+    for (const c of window.__gameCorpses ?? []) {
+      this.onCorpseEvent(new CustomEvent("game:corpse", { detail: c }));
+    }
+    // ...and a sabotage that is still running
+    if (window.__gameSabotage) {
+      this.onSabotageStarted(new CustomEvent("game:sabotageStarted", { detail: window.__gameSabotage }));
     }
 
     // Visual task animation (medbayScan) from other players
@@ -195,23 +257,36 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener("game:sabotageFixed", this.onSabotageFixed);
   }
 
-  private createAnimations(): void {
-    // Frame layout: cols = [down, up, left, right], rows = [idle(0), walk(1)]
-    const dirs = ["down", "up", "left", "right"];
-    for (let d = 0; d < 4; d++) {
-      const dir = dirs[d];
-      this.anims.create({
-        key: `idle-${dir}`,
-        frames: [{ key: "player", frame: d * 2 }],
-        frameRate: 1,
-      });
-      this.anims.create({
-        key: `walk-${dir}`,
-        frames: [{ key: "player", frame: d * 2 }, { key: "player", frame: d * 2 + 1 }],
-        frameRate: 8,
-        repeat: -1,
-      });
+  private applyZoom(width: number, height: number): void {
+    this.cameras.main.setZoom(cameraZoomFor(width, height));
+  }
+
+  private nearEmergencyButton(): boolean {
+    if (!this.myPlayer) return false;
+    return Math.hypot(this.myPlayer.x / TILE_SIZE - EMERGENCY_BUTTON.x, this.myPlayer.y / TILE_SIZE - EMERGENCY_BUTTON.y) <= EMERGENCY_BUTTON_DISTANCE;
+  }
+
+  private nearAnyTask(): boolean {
+    if (!this.myPlayer) return false;
+    const myX = this.myPlayer.x / TILE_SIZE;
+    const myY = this.myPlayer.y / TILE_SIZE;
+    return this.tasks.some((t) => !t.completed && Math.hypot(t.x - myX, t.y - myY) <= 1.5);
+  }
+
+  private findNearestVent(): { id: string; room: string } | undefined {
+    if (!this.myPlayer) return undefined;
+    const myX = this.myPlayer.x / TILE_SIZE;
+    const myY = this.myPlayer.y / TILE_SIZE;
+    let nearest: { id: string; room: string } | undefined;
+    let nearestDist = Infinity;
+    for (const v of VENT_POSITIONS) {
+      const dist = Math.hypot(v.x - myX, v.y - myY);
+      if (dist <= VENT_INTERACT_DISTANCE && dist < nearestDist) {
+        nearest = { id: v.id, room: v.room };
+        nearestDist = dist;
+      }
     }
+    return nearest;
   }
 
   update(time: number): void {
@@ -221,13 +296,15 @@ export class GameScene extends Phaser.Scene {
     this.updateInteractPrompt();
     this.updateKillButton(time);
 
-    // 1. Input
+    // 1. Input (ignored while chat/minigame/meeting owns the keyboard)
     let dx = 0;
     let dy = 0;
-    if (this.wasd.W.isDown || this.cursors.up.isDown) dy -= 1;
-    if (this.wasd.S.isDown || this.cursors.down.isDown) dy += 1;
-    if (this.wasd.A.isDown || this.cursors.left.isDown) dx -= 1;
-    if (this.wasd.D.isDown || this.cursors.right.isDown) dx += 1;
+    if (!uiOwnsKeyboard()) {
+      if (this.wasd.W.isDown || this.cursors.up.isDown) dy -= 1;
+      if (this.wasd.S.isDown || this.cursors.down.isDown) dy += 1;
+      if (this.wasd.A.isDown || this.cursors.left.isDown) dx -= 1;
+      if (this.wasd.D.isDown || this.cursors.right.isDown) dx += 1;
+    }
 
     // 2. Normalize diagonal
     if (dx !== 0 && dy !== 0) {
@@ -246,28 +323,39 @@ export class GameScene extends Phaser.Scene {
       this.lastDy = dy;
     }
 
-    // 4. Interpolate other players; keep every name label (mine included) on its sprite
+    // 4. Interpolate other players and animate them from their actual motion
     for (const [userId, ps] of Object.entries(this.playerSprites)) {
       if (userId !== this.myUserId && ps.targetX !== undefined) {
         ps.sprite.x = Phaser.Math.Linear(ps.sprite.x, ps.targetX, INTERP_FACTOR);
         ps.sprite.y = Phaser.Math.Linear(ps.sprite.y, ps.targetY!, INTERP_FACTOR);
+        const mx = ps.sprite.x - ps.lastX;
+        const my = ps.sprite.y - ps.lastY;
+        const moving = Math.abs(mx) + Math.abs(my) > 0.15;
+        if (moving) ps.facing = Math.abs(my) > Math.abs(mx) ? (my < 0 ? "up" : "down") : mx < 0 ? "left" : "right";
+        this.playAnim(ps, moving);
+        ps.lastX = ps.sprite.x;
+        ps.lastY = ps.sprite.y;
       }
-      ps.usernameText.setPosition(ps.sprite.x, ps.sprite.y - 24);
+      ps.usernameText.setPosition(ps.sprite.x, ps.sprite.y - 22);
     }
 
-    // 5. Update my animation
-    let direction = "down";
-    if (Math.abs(dy) > Math.abs(dx)) {
-      direction = dy < 0 ? "up" : dy > 0 ? "down" : "down";
-    } else if (dx !== 0) {
-      direction = dx < 0 ? "left" : "right";
+    // 5. My animation follows my input
+    const me = this.playerSprites[this.myUserId];
+    if (me) {
+      const moving = dx !== 0 || dy !== 0;
+      if (moving) me.facing = Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "up" : "down") : dx < 0 ? "left" : "right";
+      this.playAnim(me, moving);
     }
 
-    const moving = dx !== 0 || dy !== 0;
-    const animKey = `${moving ? "walk" : "idle"}-${direction}`;
-    if (this.myPlayer.anims.currentAnim?.key !== animKey) {
-      this.myPlayer.play(animKey);
+    // 6. Lights out: the vignette's hole stays on me
+    if (this.lightsActive && this.lightsOverlay && this.myPlayer) {
+      this.lightsOverlay.setPosition(this.myPlayer.x, this.myPlayer.y);
     }
+  }
+
+  private playAnim(ps: PlayerSprite, moving: boolean): void {
+    const key = `${playerKey(ps.color)}-${moving ? "walk" : "idle"}-${ps.facing}`;
+    if (ps.sprite.anims.currentAnim?.key !== key) ps.sprite.play(key);
   }
 
   private onTick(data: GameTickPayload): void {
@@ -289,6 +377,7 @@ export class GameScene extends Phaser.Scene {
         ps.targetY = p.y * TILE_SIZE;
       }
       ps.sprite.visible = p.isAlive;
+      ps.usernameText.visible = p.isAlive;
     }
   }
 
@@ -307,9 +396,15 @@ export class GameScene extends Phaser.Scene {
     }
     const nearMonitor = this.findNearestMonitor() !== undefined;
     const nearCorpse = this.findNearestCorpse();
-    if (nearTask || nearCorpse || nearMonitor) {
+    const nearVent = this.myRole === "IMPOSTOR" && this.findNearestVent() !== undefined;
+    const nearButton = this.nearEmergencyButton();
+    if (nearTask || nearCorpse || nearMonitor || nearVent || nearButton) {
       this.interactPrompt.hidden = false;
-      this.interactPrompt.textContent = nearCorpse ? "📢 E - Raporla" : nearMonitor && !nearTask ? "📺 E - İncele" : "E - Görev Yap";
+      this.interactPrompt.textContent = nearCorpse ? "📢 E - Raporla"
+        : nearVent && !nearTask ? "🕳️ E - Vent'e gir"
+        : nearButton && !nearTask ? "🚨 E - Acil Toplantı"
+        : nearMonitor && !nearTask ? "📺 E - İncele"
+        : "E - Görev Yap";
       if (nearCorpse) this.reportBtn!.hidden = false;
       else this.reportBtn!.hidden = true;
     } else {
@@ -409,9 +504,9 @@ export class GameScene extends Phaser.Scene {
 
   private onCorpseEvent = (e: Event): void => {
     const detail = (e as CustomEvent).detail as { corpseId: string; x: number; y: number; color: string };
-    const sprite = this.add.sprite(detail.x * TILE_SIZE, detail.y * TILE_SIZE, "player");
-    sprite.tint = 0x888888; // grayish for corpse
-    sprite.setAngle(90); // lying down
+    const key = playerKey(detail.color);
+    const sprite = this.add.sprite(detail.x * TILE_SIZE, detail.y * TILE_SIZE, this.textures.exists(key) ? key : playerKey("red"), DEAD_FRAME);
+    sprite.setDepth(5);
     this.corpses.push({ id: detail.corpseId, x: detail.x, y: detail.y, sprite });
   };
 
@@ -443,9 +538,11 @@ export class GameScene extends Phaser.Scene {
 
   private onTaskCompleted = (e: Event): void => {
     const detail = (e as CustomEvent).detail as { taskId: string };
-    const sprite = this.taskSprites.get(detail.taskId);
-    if (sprite) {
-      sprite.setVisible(false); // hide completed task sprite
+    const group = this.taskSprites.get(detail.taskId);
+    if (group) {
+      const [console_, arrow] = group.list as Phaser.GameObjects.Image[];
+      arrow?.setVisible(false);
+      console_?.setAlpha(0.45);
     }
     // Also update local tasks array
     const task = this.tasks.find((t) => t.id === detail.taskId);
@@ -485,7 +582,7 @@ export class GameScene extends Phaser.Scene {
     alert.hidden = false;
     if (detail.type === "lights") {
       this.lightsActive = true;
-      this.cameras.main.setZoom(1); // reduce view
+      this.lightsOverlay?.setVisible(true);
     }
   };
 
@@ -495,7 +592,7 @@ export class GameScene extends Phaser.Scene {
     alert.hidden = true;
     if (detail.type === "lights") {
       this.lightsActive = false;
-      this.cameras.main.setZoom(2); // restore view
+      this.lightsOverlay?.setVisible(false);
     }
   };
 

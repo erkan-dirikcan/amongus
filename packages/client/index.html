@@ -6,8 +6,9 @@
     <title>Among Us Clone</title>
     <link rel="stylesheet" href="/styles.css" />
     <style>
-      #game-screen { max-width: none; padding: 0; }
-      #game-container { width: 100vw; height: 100vh; }
+      #game-screen { position: fixed; inset: 0; max-width: none; padding: 0; overflow: hidden; background: #0b0f1a; }
+      #game-container { position: absolute; inset: 0; }
+      #game-container canvas { display: block; }
       .role-badge {
         position: fixed; top: 12px; right: 12px;
         background: rgba(0,0,0,0.7); color: #fff;

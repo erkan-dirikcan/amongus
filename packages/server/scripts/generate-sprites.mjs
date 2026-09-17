@@ -1,6 +1,7 @@
-// Generates tileset.png (4 tiles) + player.png (8-frame spritesheet) + tileset.json
+// Generates tileset.png (5 tiles) + tileset.json for the client.
+// Player sprites and map markers are drawn in the browser (client/src/phaser/sprites.ts).
 // Uses the `canvas` npm package.
-// Run: node scripts/generate-sprites.mjs
+// Run: node scripts/generate-sprites.mjs   (then node scripts/generate-map.mjs to re-embed)
 
 import { createCanvas } from "canvas";
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -10,31 +11,83 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TS = 32; // tile size
 
-// ─── Tileset PNG (4 tiles in a row: empty, wall, floor, room, spawn) ────
+// Tile order must match generate-map.mjs: 0 empty, 1 wall, 2 corridor, 3 room, 4 spawn(cafeteria)
 const tilesetCanvas = createCanvas(TS * 5, TS);
-const tctx = tilesetCanvas.getContext("2d");
+const ctx = tilesetCanvas.getContext("2d");
+
+// Deterministic speckle so floors are not flat
+let seed = 7;
+function rnd() {
+  seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+  return seed / 0x7fffffff;
+}
+function speckle(x, y, colors, count) {
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = colors[Math.floor(rnd() * colors.length)];
+    ctx.fillRect(x + Math.floor(rnd() * TS), y + Math.floor(rnd() * TS), 1, 1);
+  }
+}
 
 // Tile 0: empty (transparent)
-tctx.clearRect(0, 0, TS, TS);
+ctx.clearRect(0, 0, TS, TS);
 
-// Tile 1: wall (dark gray)
-tctx.fillStyle = "#2a2a3e";
-tctx.fillRect(TS * 1, 0, TS, TS);
-tctx.strokeStyle = "#1a1a2e";
-tctx.lineWidth = 2;
-tctx.strokeRect(TS * 1 + 1, 1, TS - 2, TS - 2);
+// Tile 1: wall — dark hull plate with a lit top edge and rivets
+{
+  const x = TS * 1;
+  ctx.fillStyle = "#151a26";
+  ctx.fillRect(x, 0, TS, TS);
+  ctx.fillStyle = "#2a3242";
+  ctx.fillRect(x + 1, 1, TS - 2, TS - 2);
+  ctx.fillStyle = "#3d475c"; // top highlight
+  ctx.fillRect(x + 1, 1, TS - 2, 3);
+  ctx.fillStyle = "#1c2230"; // bottom shadow
+  ctx.fillRect(x + 1, TS - 4, TS - 2, 3);
+  ctx.fillStyle = "#4a5570"; // rivets
+  for (const [rx, ry] of [[5, 8], [26, 8], [5, 24], [26, 24]]) ctx.fillRect(x + rx, ry, 2, 2);
+  ctx.fillStyle = "#222a3a"; // panel seam
+  ctx.fillRect(x + 15, 5, 2, TS - 10);
+}
 
-// Tile 2: corridor floor (medium gray)
-tctx.fillStyle = "#4a4a5e";
-tctx.fillRect(TS * 2, 0, TS, TS);
+// Tile 2: corridor — grey metal plating with seams
+{
+  const x = TS * 2;
+  ctx.fillStyle = "#4b5263";
+  ctx.fillRect(x, 0, TS, TS);
+  ctx.fillStyle = "#3f4657";
+  ctx.fillRect(x, 0, TS, 1);
+  ctx.fillRect(x, 0, 1, TS);
+  ctx.fillStyle = "#565e70";
+  ctx.fillRect(x + 1, 1, TS - 2, 1);
+  ctx.fillRect(x + 1, 1, 1, TS - 2);
+  ctx.fillStyle = "#434a5b";
+  ctx.fillRect(x + 16, 0, 1, TS);
+  ctx.fillRect(x, 16, TS, 1);
+  speckle(x, 0, ["#525a6c", "#454c5d"], 40);
+}
 
-// Tile 3: room floor (blue-gray)
-tctx.fillStyle = "#3a5a8c";
-tctx.fillRect(TS * 3, 0, TS, TS);
+// Tile 3: room floor — blue-grey tiles with grout
+{
+  const x = TS * 3;
+  ctx.fillStyle = "#2f4a6b";
+  ctx.fillRect(x, 0, TS, TS);
+  ctx.fillStyle = "#3a5a80";
+  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 14);
+  ctx.fillStyle = "#44699a";
+  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 1);
+  speckle(x, 0, ["#3f6189", "#35547a"], 30);
+}
 
-// Tile 4: spawn (yellow tint)
-tctx.fillStyle = "#c9a227";
-tctx.fillRect(TS * 4, 0, TS, TS);
+// Tile 4: cafeteria floor — warm, so the spawn room reads differently
+{
+  const x = TS * 4;
+  ctx.fillStyle = "#7a6238";
+  ctx.fillRect(x, 0, TS, TS);
+  ctx.fillStyle = "#8f7443";
+  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 14);
+  ctx.fillStyle = "#a3854d";
+  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 1);
+  speckle(x, 0, ["#977b48", "#84693c"], 30);
+}
 
 const tilesetPath = resolve(__dirname, "../../client/public/assets/tileset.png");
 mkdirSync(dirname(tilesetPath), { recursive: true });
@@ -45,14 +98,14 @@ console.log("[OK] tileset.png written");
 const tilesetJson = {
   columns: 5,
   image: "tileset.png",
-  imageheight: 32,
-  imagewidth: 160,
+  imageheight: TS,
+  imagewidth: TS * 5,
   margin: 0,
   name: "tileset",
   spacing: 0,
   tilecount: 5,
-  tileheight: 32,
-  tilewidth: 32,
+  tileheight: TS,
+  tilewidth: TS,
   tiles: [
     { id: 0, properties: [] },
     { id: 1, properties: [{ name: "collides", type: "bool", value: true }] },
@@ -64,56 +117,3 @@ const tilesetJson = {
 const tilesetJsonPath = resolve(__dirname, "../../client/public/assets/tileset.json");
 writeFileSync(tilesetJsonPath, JSON.stringify(tilesetJson, null, 2));
 console.log("[OK] tileset.json written");
-
-// ─── Player spritesheet (8 frames: 4 directions × 2 anim frames) ───────
-// Layout: 4 columns (down, up, left, right), 2 rows (idle, walk)
-const playerCanvas = createCanvas(TS * 4, TS * 2);
-const pctx = playerCanvas.getContext("2d");
-
-function drawBean(ctx, x, y, animFrame, direction) {
-  // Body: white ellipse (bean shape) — tint applied in Phaser
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.ellipse(x + TS / 2, y + TS / 2 + 2, 11, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Backpack (small bump on back)
-  ctx.beginPath();
-  const bpOffset = direction === "right" ? -7 : 7;
-  ctx.ellipse(x + TS / 2 + bpOffset, y + TS / 2 + 2, 4, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Legs (walk animation)
-  ctx.fillStyle = "#ffffff";
-  const legOffset = animFrame === 1 ? 2 : 0;
-  ctx.fillRect(x + TS / 2 - 6, y + TS - 6 + legOffset, 4, 4);
-  ctx.fillRect(x + TS / 2 + 2, y + TS - 6 - legOffset, 4, 4);
-
-  // Visor (eyes area)
-  ctx.fillStyle = "#aaccff";
-  ctx.beginPath();
-  const visorX = direction === "left" ? x + TS / 2 - 3 : direction === "right" ? x + TS / 2 + 1 : x + TS / 2 - 1;
-  ctx.ellipse(visorX, y + TS / 2 - 2, 6, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Eye detail
-  ctx.fillStyle = "#1a1a2e";
-  if (direction === "down" || direction === "up") {
-    ctx.fillRect(visorX - 2, y + TS / 2 - 3, 2, 2);
-    ctx.fillRect(visorX + 1, y + TS / 2 - 3, 2, 2);
-  } else if (direction === "left") {
-    ctx.fillRect(visorX - 3, y + TS / 2 - 3, 2, 2);
-  } else {
-    ctx.fillRect(visorX + 1, y + TS / 2 - 3, 2, 2);
-  }
-}
-
-const directions = ["down", "up", "left", "right"];
-for (let d = 0; d < 4; d++) {
-  drawBean(pctx, d * TS, 0, 0, directions[d]);      // idle (row 0)
-  drawBean(pctx, d * TS, TS, 1, directions[d]);     // walk (row 1)
-}
-
-const playerPath = resolve(__dirname, "../../client/public/assets/player.png");
-writeFileSync(playerPath, playerCanvas.toBuffer("image/png"));
-console.log("[OK] player.png written");
