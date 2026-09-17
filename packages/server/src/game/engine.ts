@@ -8,6 +8,9 @@ import { VENT_POSITIONS, findVentById } from "./vents.js";
 import { createSabotage, checkSabotageTimeout } from "./sabotage.js";
 import type { GameState, GamePlayer, Corpse } from "./types.js";
 
+/** Emergency button on the cafeteria table (tile coords) and how close you must be. */
+export const EMERGENCY_BUTTON = { x: 25.5, y: 25.5 };
+export const EMERGENCY_BUTTON_DISTANCE = 2.5;
 const PLAYER_RADIUS = 0.3; // tile units, for hitbox (PLAYER_HITBOX/TILE_SIZE ≈ 0.625, half ≈ 0.3)
 
 function isWall(x: number, y: number): boolean {
@@ -173,6 +176,54 @@ export class GameEngine {
 
   getMatch(matchId: string): GameState | undefined {
     return this.matches.get(matchId);
+  }
+
+  /** How long a dropped player may reconnect before counting as dead. */
+  static readonly DISCONNECT_GRACE_MS = 30_000;
+
+  /** A player's socket went away: freeze them and start the grace timer. */
+  markDisconnected(matchId: string, userId: string, now = Date.now()): void {
+    const player = this.matches.get(matchId)?.players.get(userId);
+    if (!player) return;
+    player.socketId = "";
+    player.disconnectedAt = now;
+    player.inputDx = 0;
+    player.inputDy = 0;
+  }
+
+  /** The same user came back: attach the new socket. Returns the player or undefined. */
+  reattach(matchId: string, userId: string, socketId: string): GamePlayer | undefined {
+    const player = this.matches.get(matchId)?.players.get(userId);
+    if (!player) return undefined;
+    player.socketId = socketId;
+    player.disconnectedAt = undefined;
+    return player;
+  }
+
+  /**
+   * Kill players whose grace period ran out. Returns true when the match has
+   * nobody connected any more and nobody who could still come back.
+   */
+  expireDisconnected(matchId: string, now = Date.now()): { killed: string[]; abandoned: boolean } {
+    const match = this.matches.get(matchId);
+    if (!match) return { killed: [], abandoned: true };
+    const killed: string[] = [];
+    let anyoneConnected = false;
+    let anyoneInGrace = false;
+    for (const p of match.players.values()) {
+      if (p.socketId) { anyoneConnected = true; continue; }
+      if (p.disconnectedAt === undefined) continue;
+      if (now - p.disconnectedAt >= GameEngine.DISCONNECT_GRACE_MS) {
+        if (p.isAlive) {
+          p.isAlive = false;
+          p.diedAt = now;
+          killed.push(p.userId);
+        }
+      } else {
+        anyoneInGrace = true;
+      }
+    }
+    return { killed, abandoned: !anyoneConnected && !anyoneInGrace };
   }
 
   findMatchByUser(userId: string): GameState | undefined {
@@ -451,7 +502,9 @@ export class GameEngine {
     if (match.emergencyUsed.has(userId)) return false;
     const player = match.players.get(userId);
     if (!player || !player.isAlive) return false;
-    return true;
+    // Must be at the emergency button (cafeteria table)
+    const dist = Math.hypot(player.x - EMERGENCY_BUTTON.x, player.y - EMERGENCY_BUTTON.y);
+    return dist <= EMERGENCY_BUTTON_DISTANCE;
   }
 
   useEmergency(matchId: string, userId: string): void {

@@ -5,7 +5,7 @@ import { AUTH_COOKIE_NAME, GAME_EVENTS, MEETING_EVENTS } from "@amongus/shared";
 import { verifyToken } from "../auth/jwt.js";
 import type { LobbyManager } from "../lobby/manager.js";
 import { registerLobbyHandlers } from "./lobbyHandlers.js";
-import { registerGameHandlers, handleGameEnd } from "./gameHandlers.js";
+import { registerGameHandlers, handleGameEnd, sendGameState } from "./gameHandlers.js";
 import { GameEngine } from "../game/engine.js";
 import cookieParser from "cookie-parser";
 
@@ -54,36 +54,28 @@ export function setupSocketServer(
     registerLobbyHandlers(io, socket, lobbyManager, gameEngine);
     registerGameHandlers(io, socket, gameEngine);
 
+    // Rejoin: the user is still part of a running match (page refresh, brief
+    // network drop) — attach this socket and replay the game state to it.
+    const running = gameEngine.findMatchByUser(socket.data.user.userId);
+    if (running && running.status === "IN_PROGRESS") {
+      gameEngine.reattach(running.matchId, socket.data.user.userId, socket.id);
+      socket.join(running.code);
+      sendGameState(io, gameEngine, running.matchId, socket.data.user.userId);
+    }
+
     socket.on("disconnect", () => {
       const result = lobbyManager.leaveLobbyBySocket(socket.id);
       if (result.lobby) {
         const state = lobbyManager.toLobbyState(result.lobby);
         io.to(result.lobby.code).emit("lobby:updated", state);
       }
-      // Game cleanup: a player who drops mid-game counts as dead. Then either
-      // end the game if that decides it, or drop the match entirely once nobody
-      // is connected — otherwise it lingers IN_PROGRESS forever and
-      // findMatchByUser() routes those users' inputs to the zombie match in
-      // every later game they play.
+      // Game: freeze the player and start their grace timer. The tick loop
+      // kills them if they do not come back in time and removes the match once
+      // nobody is left — a match must never linger IN_PROGRESS, or
+      // findMatchByUser() would route its players' inputs there in later games.
       const gameMatch = gameEngine.findMatchBySocket(socket.id);
       if (gameMatch) {
-        for (const player of gameMatch.players.values()) {
-          if (player.socketId === socket.id) {
-            player.isAlive = false;
-            player.inputDx = 0;
-            player.inputDy = 0;
-            break;
-          }
-        }
-        const anyoneConnected = [...gameMatch.players.values()].some(
-          (p) => p.socketId !== socket.id && io.sockets.sockets.has(p.socketId)
-        );
-        if (!anyoneConnected) {
-          gameEngine.removeMatch(gameMatch.matchId);
-        } else if (gameMatch.status === "IN_PROGRESS") {
-          const winner = gameEngine.checkWin(gameMatch.matchId);
-          if (winner) handleGameEnd(io, gameEngine, gameMatch.matchId, winner);
-        }
+        gameEngine.markDisconnected(gameMatch.matchId, socket.data.user.userId);
       }
     });
   });
@@ -92,6 +84,19 @@ export function setupSocketServer(
   const TICK_MS = 50;
   const tickInterval = setInterval(() => {
     for (const matchId of gameEngine.getActiveMatchIds()) {
+      // Players who dropped and never came back
+      const expired = gameEngine.expireDisconnected(matchId);
+      if (expired.abandoned) {
+        gameEngine.removeMatch(matchId);
+        continue;
+      }
+      if (expired.killed.length) {
+        const winner = gameEngine.checkWin(matchId);
+        if (winner) {
+          handleGameEnd(io, gameEngine, matchId, winner);
+          continue;
+        }
+      }
       // Check sabotage timeout
       const sabWinner = gameEngine.checkSabotageWin(matchId);
       if (sabWinner) {

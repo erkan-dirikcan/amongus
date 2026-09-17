@@ -29,6 +29,10 @@ export interface GameStartedPlayer {
 }
 
 export interface GameStartedPayload {
+  /** Present on rejoin: bodies already on the floor. */
+  corpses?: { corpseId: string; x: number; y: number; color: string }[];
+  /** Present on rejoin: false when the player died while away. */
+  isAlive?: boolean;
   matchId: string;
   role: PlayerRole;
   players: GameStartedPlayer[];

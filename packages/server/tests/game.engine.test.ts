@@ -165,4 +165,43 @@ describe("GameEngine", () => {
       expect(engine.findMatchByUser("u1")!.matchId).toBe("a");
     });
   });
+
+  describe("disconnect grace", () => {
+    it("freezes a dropped player and kills them only after the grace period", () => {
+      engine.createMatch("m1", "ABC234", players, new Map([["u1", "s1"]]));
+      const t0 = 1_000_000;
+      engine.setInput("m1", "u1", 1, 0, 1);
+      engine.markDisconnected("m1", "u1", t0);
+      const p = engine.getMatch("m1")!.players.get("u1")!;
+      expect(p.socketId).toBe("");
+      expect(p.inputDx).toBe(0);
+
+      let r = engine.expireDisconnected("m1", t0 + GameEngine.DISCONNECT_GRACE_MS - 1);
+      expect(r.killed).toEqual([]);
+      expect(p.isAlive).toBe(true);
+
+      r = engine.expireDisconnected("m1", t0 + GameEngine.DISCONNECT_GRACE_MS);
+      expect(r.killed).toEqual(["u1"]);
+      expect(p.isAlive).toBe(false);
+    });
+
+    it("reattaching within the grace period keeps the player alive", () => {
+      engine.createMatch("m1", "ABC234", players, new Map([["u1", "s1"]]));
+      const t0 = 1_000_000;
+      engine.markDisconnected("m1", "u1", t0);
+      engine.reattach("m1", "u1", "s2");
+      const r = engine.expireDisconnected("m1", t0 + GameEngine.DISCONNECT_GRACE_MS * 2);
+      expect(r.killed).toEqual([]);
+      expect(engine.getMatch("m1")!.players.get("u1")!.socketId).toBe("s2");
+      expect(r.abandoned).toBe(false); // u1 is connected
+    });
+
+    it("reports the match abandoned once everyone is gone past the grace period", () => {
+      engine.createMatch("m1", "ABC234", players, new Map(players.map((p) => [p.userId, "s-" + p.userId])));
+      const t0 = 1_000_000;
+      for (const p of players) engine.markDisconnected("m1", p.userId, t0);
+      expect(engine.expireDisconnected("m1", t0 + 1000).abandoned).toBe(false); // still in grace
+      expect(engine.expireDisconnected("m1", t0 + GameEngine.DISCONNECT_GRACE_MS).abandoned).toBe(true);
+    });
+  });
 });

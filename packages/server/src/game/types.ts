@@ -43,7 +43,10 @@ export interface GamePlayer {
   inputDy: number;
   facing: PlayerFacing;
   lastInputSeq: number;
+  /** Empty while the player has no live socket (see disconnectedAt). */
   socketId: string;
+  /** Set when the socket dropped; the player is only killed after a grace period. */
+  disconnectedAt?: number;
   killCooldownUntil: number;
   inVent: boolean;
 }

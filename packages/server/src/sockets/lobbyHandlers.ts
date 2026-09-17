@@ -4,6 +4,7 @@ import type { LobbyManager, LobbyErrorCode } from "../lobby/manager.js";
 import { LOBBY_EVENTS, GAME_EVENTS, TASK_EVENTS, lobbyCreateSchema, lobbyJoinSchema, lobbySetColorSchema } from "@amongus/shared";
 import { prisma } from "../db/prisma.js";
 import { GameEngine } from "../game/engine.js";
+import { sendGameState } from "./gameHandlers.js";
 
 export function registerLobbyHandlers(
   io: ExtendedIo,
@@ -126,31 +127,9 @@ export function registerLobbyHandlers(
         });
       }
 
-      // Emit game:started to each player (with THEIR role)
+      // Each player gets their own view (role, tasks, spawn)
       for (const p of gameMatch.players.values()) {
-        const payload = {
-          matchId: match.id,
-          role: p.role,
-          players: [...gameMatch.players.values()].map((gp) => ({
-            userId: gp.userId,
-            username: gp.username,
-            color: gp.color,
-          })),
-          spawn: { x: p.x, y: p.y },
-        };
-        io.to(p.socketId).emit(GAME_EVENTS.STARTED, payload);
-      }
-
-      // Emit tasks to each crewmate
-      for (const p of gameMatch.players.values()) {
-        if (p.role !== "CREW") continue;
-        const playerTasks = [...gameMatch.tasks.values()]
-          .filter((t) => t.assignedTo === p.userId)
-          .map((t) => ({ id: t.id, type: t.type, room: t.room, x: t.x, y: t.y, completed: t.completed, isVisual: t.isVisual }));
-        io.to(p.socketId).emit(TASK_EVENTS.TASKS_ASSIGNED, {
-          tasks: playerTasks,
-          total: gameMatch.taskProgress.total,
-        });
+        sendGameState(io, engine, match.id, p.userId);
       }
     } catch (dbErr) {
       console.error("[server] Failed to create match:", dbErr);

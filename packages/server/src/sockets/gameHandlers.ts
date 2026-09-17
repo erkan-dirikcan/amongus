@@ -278,6 +278,50 @@ export function registerGameHandlers(
   }
 }
 
+/**
+ * Send a player everything they need to (re)build the game screen: tasks
+ * first (the scene reads them when it boots), then game:started, then the
+ * bits of state that accumulated since the match began.
+ */
+export function sendGameState(io: ExtendedIo, engine: GameEngine, matchId: string, userId: string): void {
+  const match = engine.getMatch(matchId);
+  const player = match?.players.get(userId);
+  if (!match || !player || !player.socketId) return;
+  const to = io.to(player.socketId);
+
+  if (player.role === "CREW") {
+    const playerTasks = [...match.tasks.values()]
+      .filter((t) => t.assignedTo === userId)
+      .map((t) => ({ id: t.id, type: t.type, room: t.room, x: t.x, y: t.y, completed: t.completed, isVisual: t.isVisual }));
+    to.emit(TASK_EVENTS.TASKS_ASSIGNED, { tasks: playerTasks, total: match.taskProgress.total });
+  }
+
+  to.emit(GAME_EVENTS.STARTED, {
+    matchId,
+    role: player.role,
+    players: [...match.players.values()].map((gp) => ({ userId: gp.userId, username: gp.username, color: gp.color })),
+    spawn: { x: player.x, y: player.y },
+    corpses: match.corpses.map((c) => ({ corpseId: c.id, x: c.x, y: c.y, color: c.victimColor })),
+    isAlive: player.isAlive,
+  });
+  to.emit(TASK_EVENTS.TASK_UPDATE, match.taskProgress);
+  if (match.sabotage) {
+    to.emit(VENT_SABOTAGE_EVENTS.SABOTAGE_STARTED, { type: match.sabotage.type, expiresAt: match.sabotage.expiresAt });
+  }
+  const meeting = match.meetingState;
+  if (meeting) {
+    // Rejoining mid-meeting: open the meeting screen with the remaining time
+    to.emit(MEETING_EVENTS.MEETING_STARTED, {
+      reason: meeting.reason,
+      reporterId: meeting.reporterId,
+      reporterName: match.players.get(meeting.reporterId)?.username || "",
+      duration: Math.max(1000, meeting.startedAt + meeting.durationMs - Date.now()),
+      players: [...match.players.values()].map((p) => ({ userId: p.userId, username: p.username, color: p.color, isAlive: p.isAlive })),
+      victimId: meeting.victimId,
+    });
+  }
+}
+
 export async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId: string, winner: "CREW" | "IMPOSTOR"): Promise<void> {
   const match = engine.getMatch(matchId);
   if (!match) return;

@@ -33,6 +33,10 @@ export function initGameScreen(): void {
   const socket = getSocket();
 
   socket.on("game:started", (payload: GameStartedPayload) => {
+    // A rejoin replays the corpses that exist so far; a fresh start has none
+    window.__gameCorpses = payload.corpses ?? [];
+    window.__gameSabotage = undefined;
+    if (payload.role === "IMPOSTOR") window.__gameTasks = [];
     showScreen("game");
     const roleEl = document.getElementById("role-display")!;
     roleEl.textContent = payload.role === "IMPOSTOR" ? "🔪 IMPOSTOR" : "🛠️ CREWMATE";
@@ -101,12 +105,16 @@ export function initGameScreen(): void {
     window.dispatchEvent(new CustomEvent("game:ventState", { detail: payload }));
   });
 
+  // Kept in a global too: on (re)join this arrives before the Phaser scene has
+  // registered its listeners, so the scene reads it when it boots.
   socket.on("game:sabotageStarted", (payload: any) => {
+    window.__gameSabotage = payload;
     audio.play("sabotageAlarm");
     window.dispatchEvent(new CustomEvent("game:sabotageStarted", { detail: payload }));
   });
 
   socket.on("game:sabotageFixed", (payload: any) => {
+    window.__gameSabotage = undefined;
     window.dispatchEvent(new CustomEvent("game:sabotageFixed", { detail: payload }));
   });
 
@@ -292,6 +300,8 @@ function renderMonitorPanel(payload: { type: MonitorType; data?: any; error?: st
 declare global {
   interface Window {
     __gameTasks?: TaskClient[];
+    __gameCorpses?: { corpseId: string; x: number; y: number; color: string }[];
+    __gameSabotage?: { type: string; expiresAt?: number };
     __gameTaskTotal?: number;
   }
 }
