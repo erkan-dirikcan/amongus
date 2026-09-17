@@ -8,8 +8,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amongus_password}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Only reachable from the host (psql/debug), never from the internet
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amongus}"]
       interval: 5s
@@ -32,9 +33,31 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    # Caddy fronts the app; expose 3000 on localhost only for debugging
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+  # HTTPS + WebSocket reverse proxy. Set DOMAIN in .env (DNS A record must
+  # point at this server); Caddy fetches and renews the Let's Encrypt cert.
+  # Without a domain: set DOMAIN=":80" and COOKIE_SECURE=false, then use http://<ip>.
+  caddy:
+    image: caddy:2-alpine
+    container_name: amongus-caddy
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     restart: unless-stopped
 
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

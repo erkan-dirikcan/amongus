@@ -1,0 +1,5 @@
+{$DOMAIN} {
+	# Socket.io upgrades are proxied transparently by Caddy
+	reverse_proxy app:3000
+	encode gzip
+}

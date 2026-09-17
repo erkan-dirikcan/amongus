@@ -41,6 +41,30 @@ npm run smoke -w @amongus/server
 - [Tasarım Dokümanı](docs/superpowers/specs/2026-07-05-amongus-clone-design.md)
 - [Sub-project 1 Planı](docs/superpowers/plans/2026-07-05-sub1-setup-auth.md)
 
+## Yayına Alma (Linux VPS + Docker Compose + HTTPS)
+
+Compose üç servis kaldırır: `db` (Postgres), `app` (sunucu + derlenmiş client),
+`caddy` (80/443'te HTTPS + WebSocket reverse proxy). Yalnızca Caddy dışarıya açıktır.
+
+```bash
+# Sunucuda (Ubuntu/Debian): Docker kur
+curl -fsSL https://get.docker.com | sh
+
+git clone <repo-url> amongus && cd amongus
+cp .env.example .env
+# .env: JWT_SECRET (uzun rastgele), POSTGRES_PASSWORD, DOMAIN=oyun.alanadin.com
+docker compose up -d --build
+docker compose logs -f app   # "listening" satırını gör
+```
+
+DNS'te alan adının A kaydı sunucu IP'sine bakmalı; Caddy sertifikayı Let's Encrypt'ten
+kendisi alır. Tarayıcıdan `https://oyun.alanadin.com`.
+
+Alan adın yoksa: `.env` içinde `DOMAIN=":80"` ve `COOKIE_SECURE=false` yap,
+`http://<sunucu-ip>` ile oyna (cookie'ler HTTP'de yalnızca `COOKIE_SECURE=false` iken çalışır).
+
+Güncelleme: `git pull && docker compose up -d --build`.
+
 ## Linux Sunucuda Çalıştırma
 
 Sub-project 1, Docker Compose ile tek komutta ayağa kalkar. İlk açılışta Prisma
