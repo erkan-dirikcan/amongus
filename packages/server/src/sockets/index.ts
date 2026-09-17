@@ -60,14 +60,29 @@ export function setupSocketServer(
         const state = lobbyManager.toLobbyState(result.lobby);
         io.to(result.lobby.code).emit("lobby:updated", state);
       }
-      // Game cleanup: mark player as not alive (stops movement; Sub-project 4 handles full leave/end)
+      // Game cleanup: a player who drops mid-game counts as dead. Then either
+      // end the game if that decides it, or drop the match entirely once nobody
+      // is connected — otherwise it lingers IN_PROGRESS forever and
+      // findMatchByUser() routes those users' inputs to the zombie match in
+      // every later game they play.
       const gameMatch = gameEngine.findMatchBySocket(socket.id);
       if (gameMatch) {
         for (const player of gameMatch.players.values()) {
           if (player.socketId === socket.id) {
-            player.isAlive = false; // will stop movement, Sub-4 handles properly
+            player.isAlive = false;
+            player.inputDx = 0;
+            player.inputDy = 0;
             break;
           }
+        }
+        const anyoneConnected = [...gameMatch.players.values()].some(
+          (p) => p.socketId !== socket.id && io.sockets.sockets.has(p.socketId)
+        );
+        if (!anyoneConnected) {
+          gameEngine.removeMatch(gameMatch.matchId);
+        } else if (gameMatch.status === "IN_PROGRESS") {
+          const winner = gameEngine.checkWin(gameMatch.matchId);
+          if (winner) handleGameEnd(io, gameEngine, gameMatch.matchId, winner);
         }
       }
     });

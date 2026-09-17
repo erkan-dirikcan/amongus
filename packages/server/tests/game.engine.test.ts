@@ -142,4 +142,27 @@ describe("GameEngine", () => {
       expect(engine.getMatch("m1")).toBeUndefined();
     });
   });
+
+  describe("findMatchByUser", () => {
+    // Regression: a match that never ended cleanly (players dropped) used to
+    // shadow the user's new match, so their inputs went to the stale one.
+    it("prefers the newest in-progress match when an older one lingers", () => {
+      engine.createMatch("old", "OLD123", players);
+      engine.createMatch("new", "NEW123", players);
+      expect(engine.findMatchByUser("u1")!.matchId).toBe("new");
+
+      engine.setInput("new", "u1", 1, 0, 1);
+      engine.tick("new");
+      expect(engine.getMatch("new")!.players.get("u1")!.x).toBeGreaterThan(
+        engine.getMatch("old")!.players.get("u1")!.x
+      );
+    });
+
+    it("skips ended matches in favour of an in-progress one", () => {
+      engine.createMatch("a", "AAA123", players);
+      engine.createMatch("b", "BBB123", players);
+      engine.getMatch("b")!.status = "ENDED";
+      expect(engine.findMatchByUser("u1")!.matchId).toBe("a");
+    });
+  });
 });

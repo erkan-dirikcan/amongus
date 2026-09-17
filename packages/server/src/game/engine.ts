@@ -176,10 +176,13 @@ export class GameEngine {
   }
 
   findMatchByUser(userId: string): GameState | undefined {
-    for (const match of this.matches.values()) {
-      if (match.players.has(userId)) return match;
-    }
-    return undefined;
+    // Newest first: if an older match this user was in is still around, the
+    // one they are actually playing is the most recently created.
+    const matches = [...this.matches.values()].reverse();
+    return (
+      matches.find((m) => m.status === "IN_PROGRESS" && m.players.has(userId)) ??
+      matches.find((m) => m.players.has(userId))
+    );
   }
 
   findMatchBySocket(socketId: string): GameState | undefined {
