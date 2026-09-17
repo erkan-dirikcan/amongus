@@ -5,6 +5,7 @@ import { audio } from "../audio/manager.js";
 import { MONITOR_QUERY_INTERVAL_MS } from "../constants.js";
 import type { MonitorType } from "../constants.js";
 import type { GameStartedPayload, TaskClient } from "../types.js";
+import { getCurrentUserId } from "../session.js";
 
 const ROOM_LABELS: Record<string, string> = {
   cafeteria: "Kafeterya",
@@ -31,24 +32,15 @@ let openMonitorType: MonitorType | null = null;
 export function initGameScreen(): void {
   const socket = getSocket();
 
-  socket.on("game:started", async (payload: GameStartedPayload) => {
+  socket.on("game:started", (payload: GameStartedPayload) => {
     showScreen("game");
     const roleEl = document.getElementById("role-display")!;
     roleEl.textContent = payload.role === "IMPOSTOR" ? "🔪 IMPOSTOR" : "🛠️ CREWMATE";
     roleEl.style.background = payload.role === "IMPOSTOR" ? "rgba(200,30,30,0.8)" : "rgba(30,100,200,0.8)";
     updateSoundButton();
     audio.startAmbient();
-    try {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
-      const data = await res.json();
-      if (data.user) {
-        startPhaserGame({ ...payload, myUserId: data.user.id });
-      } else {
-        startPhaserGame(payload);
-      }
-    } catch {
-      startPhaserGame(payload);
-    }
+    const myUserId = getCurrentUserId();
+    startPhaserGame(myUserId ? { ...payload, myUserId } : payload);
   });
 
   socket.on("game:tasksAssigned", (payload: { tasks: TaskClient[]; total: number }) => {

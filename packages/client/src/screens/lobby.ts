@@ -1,6 +1,7 @@
 import { getSocket } from "../network/socket.js";
 import { showScreen } from "../app.js";
 import type { LobbyState } from "../types.js";
+import { getCurrentUserId } from "../session.js";
 
 // Local copy of colors — avoids cross-package import complexity in the browser bundle.
 // These MUST match packages/shared/src/constants.ts LOBBY_COLORS exactly.
@@ -15,18 +16,8 @@ const COLOR_HEX: Record<string, string> = {
   purple: "#8e24aa", brown: "#795548", cyan: "#00acc1", lime: "#c0ca33",
 };
 
-let currentUserId = "";
-
 export function initLobbyScreen(): void {
   const socket = getSocket();
-
-  // Fetch current user id (from /api/auth/me) — set on lobby state received
-  fetch("/api/auth/me", { credentials: "include" })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.user) currentUserId = data.user.id;
-    })
-    .catch(() => {});
 
   // Build color buttons
   const colorButtonsEl = document.getElementById("color-buttons")!;
@@ -54,11 +45,6 @@ export function initLobbyScreen(): void {
     const errorEl = document.getElementById("lobby-error")!;
     errorEl.textContent = err.message;
     setTimeout(() => (errorEl.textContent = ""), 3000);
-  });
-
-  socket.on("lobby:started", () => {
-    const errorEl = document.getElementById("lobby-error")!;
-    errorEl.textContent = "🎉 Oyun başlıyor! (Sub-project 3'te gelecek)";
   });
 
   // Action buttons
@@ -110,6 +96,7 @@ function renderLobby(state: LobbyState): void {
   }
 
   // Update ready button text
+  const currentUserId = getCurrentUserId();
   const me = state.players.find((p) => p.userId === currentUserId);
   const readyBtn = document.getElementById("btn-ready")!;
   if (me) {

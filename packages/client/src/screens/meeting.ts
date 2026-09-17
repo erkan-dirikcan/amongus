@@ -1,6 +1,7 @@
 import { getSocket } from "../network/socket.js";
 import { showScreen } from "../app.js";
 import type { MeetingPlayerInfo } from "../types.js";
+import { getCurrentUserId } from "../session.js";
 
 const COLOR_HEX: Record<string, string> = {
   red: "#e53935", blue: "#1e88e5", green: "#43a047", pink: "#ec407a",
@@ -9,18 +10,10 @@ const COLOR_HEX: Record<string, string> = {
 };
 
 let meetingPlayers: MeetingPlayerInfo[] = [];
-let myUserId = "";
 let myVote: string | "skip" | null = null;
 
-export async function initMeetingScreen(): Promise<void> {
+export function initMeetingScreen(): void {
   const socket = getSocket();
-
-  // Get user ID
-  try {
-    const res = await fetch("/api/auth/me", { credentials: "include" });
-    const data = await res.json();
-    if (data.user) myUserId = data.user.id;
-  } catch {}
 
   socket.on("game:meetingStarted", (payload: any) => {
     meetingPlayers = payload.players;
@@ -86,6 +79,7 @@ export async function initMeetingScreen(): Promise<void> {
 function renderVoteButtons(voted?: Record<string, boolean>): void {
   const container = document.getElementById("vote-buttons")!;
   container.innerHTML = "";
+  const myUserId = getCurrentUserId();
   const me = meetingPlayers.find((p) => p.userId === myUserId);
   const canVote = me?.isAlive ?? false;
 

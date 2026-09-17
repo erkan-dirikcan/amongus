@@ -1,4 +1,6 @@
 import { api } from "./network/api.js";
+import { connectSocket } from "./network/socket.js";
+import { setCurrentUser } from "./session.js";
 import { audio } from "./audio/manager.js";
 import { initLoginScreen } from "./screens/login.js";
 import { initMenuScreen } from "./screens/menu.js";
@@ -24,9 +26,7 @@ async function bootstrap(): Promise<void> {
   initMenuScreen();
   initLobbyScreen();
   initGameScreen();
-  // initMeetingScreen is async (fetches userId); fire-and-forget so it
-  // doesn't block the rest of bootstrap. It registers socket handlers.
-  void initMeetingScreen();
+  initMeetingScreen();
   void initStatsScreen();
 
   // Subtle click sound on every button (respects mute, resumes AudioContext)
@@ -39,6 +39,8 @@ async function bootstrap(): Promise<void> {
   // Check if already logged in
   try {
     const { user } = await api.me();
+    setCurrentUser(user);
+    connectSocket();
     showScreen("menu");
     document.getElementById("menu-username")!.textContent = user.username;
   } catch {

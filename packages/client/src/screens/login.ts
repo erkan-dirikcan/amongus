@@ -1,5 +1,7 @@
 import { api } from "../network/api.js";
 import { showScreen } from "../app.js";
+import { connectSocket } from "../network/socket.js";
+import { setCurrentUser } from "../session.js";
 
 export function initLoginScreen(): void {
   const usernameInput = document.getElementById("login-username") as HTMLInputElement;
@@ -21,6 +23,8 @@ export function initLoginScreen(): void {
         ? await api.register(username, password)
         : await api.login(username, password);
       document.getElementById("menu-username")!.textContent = user.username;
+      setCurrentUser(user);
+      connectSocket();
       showScreen("menu");
     } catch (err: any) {
       errorEl.textContent = err.message || "Bir hata oluştu";

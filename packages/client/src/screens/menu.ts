@@ -1,6 +1,7 @@
 import { api } from "../network/api.js";
-import { getSocket } from "../network/socket.js";
+import { getSocket, disconnectSocket } from "../network/socket.js";
 import { showScreen } from "../app.js";
+import { setCurrentUser } from "../session.js";
 
 export function initMenuScreen(): void {
   const logoutBtn = document.getElementById("btn-logout")!;
@@ -19,6 +20,8 @@ export function initMenuScreen(): void {
     } catch {
       // ignore
     }
+    disconnectSocket();
+    setCurrentUser(null);
     showScreen("login");
   });
 
