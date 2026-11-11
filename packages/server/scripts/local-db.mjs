@@ -13,7 +13,7 @@ import EmbeddedPostgres from "embedded-postgres";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");
 const dataDir = path.join(repoRoot, ".local", "pg");
-const PORT = 5432;
+const PORT = 5433;
 const USER = "amongus";
 const PASSWORD = "amongus_password";
 const DATABASES = ["amongus", "amongus_test"];

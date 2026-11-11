@@ -5,10 +5,12 @@ import Phaser from "phaser";
 // similar number of tiles on a laptop and a 4K monitor.
 export const PHASER_CONFIG: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  backgroundColor: "#0b0f1a",
+  backgroundColor: "#060913",
   parent: "game-container",
-  pixelArt: true,
-  render: { pixelArt: true, antialias: false },
+  pixelArt: false,
+  antialias: true,
+  roundPixels: false,
+  render: { pixelArt: false, antialias: true, roundPixels: false },
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER,

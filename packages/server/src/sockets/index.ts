@@ -29,7 +29,7 @@ export function setupSocketServer(
 ): ExtendedIo {
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:5173", "http://localhost:3000"],
+      origin: process.env.NODE_ENV === "production" ? true : ["http://localhost:5173", "http://localhost:3000"],
       credentials: true,
     },
   }) as ExtendedIo;
@@ -52,7 +52,7 @@ export function setupSocketServer(
 
   io.on("connection", (socket: ExtendedSocket) => {
     registerLobbyHandlers(io, socket, lobbyManager, gameEngine);
-    registerGameHandlers(io, socket, gameEngine);
+    registerGameHandlers(io, socket, gameEngine, lobbyManager);
 
     // Rejoin: the user is still part of a running match (page refresh, brief
     // network drop) — attach this socket and replay the game state to it.
@@ -93,14 +93,14 @@ export function setupSocketServer(
       if (expired.killed.length) {
         const winner = gameEngine.checkWin(matchId);
         if (winner) {
-          handleGameEnd(io, gameEngine, matchId, winner);
+          handleGameEnd(io, gameEngine, matchId, winner, lobbyManager);
           continue;
         }
       }
       // Check sabotage timeout
       const sabWinner = gameEngine.checkSabotageWin(matchId);
       if (sabWinner) {
-        handleGameEnd(io, gameEngine, matchId, sabWinner);
+        handleGameEnd(io, gameEngine, matchId, sabWinner, lobbyManager);
         continue;
       }
       // Check meeting end BEFORE normal tick — if meeting just ended, emit and skip tick.
@@ -109,17 +109,15 @@ export function setupSocketServer(
         if (result) {
           const match = gameEngine.getMatch(matchId);
           if (match) {
-            // Note: endMeeting already cleared meetingState; votes reconstructed as empty record here.
-            const votes: Record<string, string | "skip"> = {};
             io.to(match.code).emit(MEETING_EVENTS.MEETING_ENDED, {
               ejectedId: result.ejectedId,
               ejectedRole: result.ejectedRole,
               wasTie: result.wasTie,
-              votes,
+              votes: result.votes ?? {},
             });
             const winner = gameEngine.checkWin(matchId);
             if (winner) {
-              handleGameEnd(io, gameEngine, matchId, winner);
+              handleGameEnd(io, gameEngine, matchId, winner, lobbyManager);
             }
           }
         }

@@ -90,6 +90,7 @@ export interface GameStartedPayload {
   role: PlayerRole;
   players: GameStartedPlayer[];
   spawn: { x: number; y: number };
+  impostorIds?: string[];
 }
 
 export interface TickPlayer {
@@ -111,8 +112,17 @@ export interface GameInputPayload {
   seq: number;
 }
 
+export interface GameEndedPlayer {
+  userId: string;
+  username: string;
+  color: string;
+  role: PlayerRole;
+  isAlive: boolean;
+}
+
 export interface GameEndedPayload {
   winner: "CREW" | "IMPOSTOR";
+  players?: GameEndedPlayer[];
 }
 
 export const GAME_EVENTS = {
@@ -227,6 +237,8 @@ export interface ChatMessagePayload {
   userId: string;
   username: string;
   message: string;
+  color?: string;
+  isGhost?: boolean;
 }
 
 export const MEETING_EVENTS = {

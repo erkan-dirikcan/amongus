@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { WALL_GRID, MAP_WIDTH, MAP_HEIGHT, SPAWN_CENTER } from "../src/game/mapData.js";
 import { TASK_LOCATIONS } from "../src/game/tasks.js";
 import { VENT_POSITIONS } from "../src/game/vents.js";
+import { SABOTAGE_LOCATIONS } from "@amongus/shared";
 
 /** Tiles reachable on foot (4-neighbour flood fill) from a start tile. */
 function reachableFrom(x0: number, y0: number): Set<string> {
@@ -88,5 +89,11 @@ describe("map data", () => {
     const reachable = reachableFrom(SPAWN_CENTER.x, SPAWN_CENTER.y);
     const stranded = VENT_POSITIONS.filter((v) => !reachable.has(`${v.x},${v.y}`));
     expect(stranded.map((v) => v.id)).toEqual([]);
+  });
+
+  it("every sabotage repair location is reachable on foot from spawn", () => {
+    const reachable = reachableFrom(SPAWN_CENTER.x, SPAWN_CENTER.y);
+    const stranded = SABOTAGE_LOCATIONS.filter((s) => !reachable.has(`${s.x},${s.y}`));
+    expect(stranded.map((s) => s.id)).toEqual([]);
   });
 });

@@ -111,7 +111,7 @@ export class GameEngine {
     if (match.meetingState) {
       // During meeting: no movement, return current positions
       const tickPlayers: TickPlayer[] = [...match.players.values()].map((p) => ({
-        userId: p.userId, x: p.x, y: p.y, facing: p.facing, isAlive: p.isAlive,
+        userId: p.userId, x: p.x, y: p.y, facing: p.facing, isAlive: p.isAlive, inVent: p.inVent,
       }));
       return { players: tickPlayers };
     }
@@ -120,17 +120,6 @@ export class GameEngine {
     const tickPlayers: TickPlayer[] = [];
 
     for (const player of match.players.values()) {
-      if (!player.isAlive) {
-        tickPlayers.push({
-          userId: player.userId,
-          x: player.x,
-          y: player.y,
-          facing: player.facing,
-          isAlive: false,
-        });
-        continue;
-      }
-
       let dx = player.inputDx;
       let dy = player.inputDy;
 
@@ -143,16 +132,26 @@ export class GameEngine {
       const moveX = dx * PLAYER_SPEED * delta;
       const moveY = dy * PLAYER_SPEED * delta;
 
-      // Try X movement
-      const newX = player.x + moveX;
-      if (canMoveTo(newX, player.y)) {
-        player.x = newX;
-      }
-
-      // Try Y movement
-      const newY = player.y + moveY;
-      if (canMoveTo(player.x, newY)) {
-        player.y = newY;
+      if (player.isAlive) {
+        // Alive players collide with walls
+        const newX = player.x + moveX;
+        if (canMoveTo(newX, player.y)) {
+          player.x = newX;
+        }
+        const newY = player.y + moveY;
+        if (canMoveTo(player.x, newY)) {
+          player.y = newY;
+        }
+      } else {
+        // Ghosts pass through walls, clamped to map bounds
+        const newX = player.x + moveX;
+        if (newX >= 1 && newX < MAP_WIDTH - 1) {
+          player.x = newX;
+        }
+        const newY = player.y + moveY;
+        if (newY >= 1 && newY < MAP_HEIGHT - 1) {
+          player.y = newY;
+        }
       }
 
       // Update facing
@@ -168,6 +167,7 @@ export class GameEngine {
         y: player.y,
         facing: player.facing,
         isAlive: player.isAlive,
+        inVent: player.inVent,
       });
     }
 
@@ -416,6 +416,11 @@ export class GameEngine {
     if (!match) return false;
     if (match.meetingState) return false; // already in meeting
 
+    // Disarm critical countdown sabotages when a meeting is called
+    if (match.sabotage && (match.sabotage.type === "reactor" || match.sabotage.type === "o2")) {
+      match.sabotage = null;
+    }
+
     match.meetingState = {
       matchId,
       reason,
@@ -449,9 +454,14 @@ export class GameEngine {
     return { success: true };
   }
 
-  endMeeting(matchId: string): { ejectedId: string | null; ejectedRole: "IMPOSTOR" | "CREW" | null; wasTie: boolean } | null {
+  endMeeting(matchId: string): { ejectedId: string | null; ejectedRole: "IMPOSTOR" | "CREW" | null; wasTie: boolean; votes: Record<string, string | "skip"> } | null {
     const match = this.matches.get(matchId);
     if (!match || !match.meetingState) return null;
+
+    const votes: Record<string, string | "skip"> = {};
+    for (const [voterId, target] of match.meetingState.votes.entries()) {
+      votes[voterId] = target;
+    }
 
     const result = tallyVotes(match.meetingState.votes);
     let ejectedRole: "IMPOSTOR" | "CREW" | null = null;
@@ -466,7 +476,7 @@ export class GameEngine {
     }
 
     match.meetingState = null;
-    return { ejectedId: result.ejected, ejectedRole, wasTie: result.wasTie };
+    return { ejectedId: result.ejected, ejectedRole, wasTie: result.wasTie, votes };
   }
 
   isInMeeting(matchId: string): boolean {
@@ -572,11 +582,8 @@ export class GameEngine {
     const player = match.players.get(userId);
     if (!player?.isAlive) return { success: false, message: "Cannot help" };
     match.sabotage.holders.add(userId);
-    if (match.sabotage.holders.size >= 2) {
-      match.sabotage = null;
-      return { success: true, complete: true };
-    }
-    return { success: true, complete: false };
+    match.sabotage = null;
+    return { success: true, complete: true };
   }
 
   o2Code(matchId: string, userId: string, code: string, location: string): { success: boolean; message?: string; complete?: boolean } {
@@ -584,18 +591,14 @@ export class GameEngine {
     if (!match?.sabotage || match.sabotage.type !== "o2") return { success: false, message: "O2 not sabotaged" };
     const player = match.players.get(userId);
     if (!player?.isAlive) return { success: false, message: "Cannot help" };
-    // Two codes needed (admin + o2). Track which locations have been entered.
     match.sabotage.holders.add(`${location}:${code}`);
-    if (match.sabotage.holders.size >= 2) {
-      match.sabotage = null;
-      return { success: true, complete: true };
-    }
-    return { success: true, complete: false };
+    match.sabotage = null;
+    return { success: true, complete: true };
   }
 
   checkSabotageWin(matchId: string): "IMPOSTOR" | null {
     const match = this.matches.get(matchId);
-    if (!match?.sabotage) return null;
+    if (!match?.sabotage || match.meetingState) return null;
     if (match.sabotage.type === "reactor" || match.sabotage.type === "o2") {
       if (checkSabotageTimeout(match.sabotage)) {
         match.sabotage = null;

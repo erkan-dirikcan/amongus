@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 // Use a separate test database via DATABASE_URL env (set in vitest config)
 const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??
-  "postgresql://amongus:amongus_password@localhost:5432/amongus_test?schema=public";
+  "postgresql://amongus:amongus_password@localhost:5433/amongus_test?schema=public";
 
 process.env.DATABASE_URL = testDatabaseUrl;
 process.env.JWT_SECRET = "test-jwt-secret-min-32-chars-long-aaaaaaaaaa!!";

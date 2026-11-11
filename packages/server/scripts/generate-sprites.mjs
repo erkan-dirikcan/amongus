@@ -28,65 +28,121 @@ function speckle(x, y, colors, count) {
   }
 }
 
-// Tile 0: empty (transparent)
+// Tile 0: empty (transparent — lets the starfield show through)
 ctx.clearRect(0, 0, TS, TS);
 
-// Tile 1: wall — dark hull plate with a lit top edge and rivets
+// Tile 1: wall — deep spacecraft bulkhead with 3D bevel, baseboard, and subtle tech trim
 {
   const x = TS * 1;
-  ctx.fillStyle = "#151a26";
+  // Outer dark frame
+  ctx.fillStyle = "#0f141f";
   ctx.fillRect(x, 0, TS, TS);
-  ctx.fillStyle = "#2a3242";
+
+  // Main bulkhead body
+  ctx.fillStyle = "#1e2638";
   ctx.fillRect(x + 1, 1, TS - 2, TS - 2);
-  ctx.fillStyle = "#3d475c"; // top highlight
-  ctx.fillRect(x + 1, 1, TS - 2, 3);
-  ctx.fillStyle = "#1c2230"; // bottom shadow
-  ctx.fillRect(x + 1, TS - 4, TS - 2, 3);
-  ctx.fillStyle = "#4a5570"; // rivets
-  for (const [rx, ry] of [[5, 8], [26, 8], [5, 24], [26, 24]]) ctx.fillRect(x + rx, ry, 2, 2);
-  ctx.fillStyle = "#222a3a"; // panel seam
-  ctx.fillRect(x + 15, 5, 2, TS - 10);
+
+  // Upper lit bevel
+  ctx.fillStyle = "#394663";
+  ctx.fillRect(x + 1, 1, TS - 2, 4);
+  ctx.fillStyle = "#4d5e82";
+  ctx.fillRect(x + 2, 1, TS - 4, 2);
+
+  // Recessed center panel
+  ctx.fillStyle = "#171e2e";
+  ctx.fillRect(x + 4, 7, TS - 8, TS - 14);
+  ctx.fillStyle = "#253047";
+  ctx.fillRect(x + 5, 8, TS - 10, TS - 16);
+
+  // Subtle cyan status strip in the panel
+  ctx.fillStyle = "#2b4c66";
+  ctx.fillRect(x + 7, 14, TS - 14, 2);
+
+  // Lower baseboard shadow
+  ctx.fillStyle = "#121722";
+  ctx.fillRect(x + 1, TS - 5, TS - 2, 4);
+
+  // Corner bolts / rivets
+  ctx.fillStyle = "#56688f";
+  for (const [rx, ry] of [[3, 3], [27, 3], [3, 27], [27, 27]]) {
+    ctx.fillRect(x + rx, ry, 2, 2);
+  }
 }
 
-// Tile 2: corridor — grey metal plating with seams
+// Tile 2: corridor — industrial steel walkway with grating & seam lines
 {
   const x = TS * 2;
-  ctx.fillStyle = "#4b5263";
+  ctx.fillStyle = "#464e5e";
   ctx.fillRect(x, 0, TS, TS);
-  ctx.fillStyle = "#3f4657";
-  ctx.fillRect(x, 0, TS, 1);
-  ctx.fillRect(x, 0, 1, TS);
-  ctx.fillStyle = "#565e70";
-  ctx.fillRect(x + 1, 1, TS - 2, 1);
-  ctx.fillRect(x + 1, 1, 1, TS - 2);
-  ctx.fillStyle = "#434a5b";
-  ctx.fillRect(x + 16, 0, 1, TS);
-  ctx.fillRect(x, 16, TS, 1);
-  speckle(x, 0, ["#525a6c", "#454c5d"], 40);
+
+  // Subtle border bevel
+  ctx.fillStyle = "#555f73";
+  ctx.fillRect(x, 0, TS, 2);
+  ctx.fillRect(x, 0, 2, TS);
+  ctx.fillStyle = "#373e4c";
+  ctx.fillRect(x, TS - 2, TS, 2);
+  ctx.fillRect(x + TS - 2, 0, 2, TS);
+
+  // Grating ribs
+  ctx.fillStyle = "#3d4454";
+  for (let gy = 5; gy < TS - 4; gy += 5) {
+    ctx.fillRect(x + 4, gy, 10, 2);
+    ctx.fillRect(x + 18, gy, 10, 2);
+  }
+
+  // Center seam
+  ctx.fillStyle = "#353b49";
+  ctx.fillRect(x + 15, 0, 2, TS);
+  ctx.fillRect(x, 15, TS, 2);
+  speckle(x, 0, ["#4f586b", "#404757"], 25);
 }
 
-// Tile 3: room floor — blue-grey tiles with grout
+// Tile 3: room floor — clean spacecraft deck plating (blue-slate tiles)
 {
   const x = TS * 3;
-  ctx.fillStyle = "#2f4a6b";
+  ctx.fillStyle = "#2b3f5c";
   ctx.fillRect(x, 0, TS, TS);
-  ctx.fillStyle = "#3a5a80";
-  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 14);
-  ctx.fillStyle = "#44699a";
-  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 1);
-  speckle(x, 0, ["#3f6189", "#35547a"], 30);
+
+  // 2x2 sub-panels
+  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) {
+    ctx.fillStyle = "#354d70";
+    ctx.fillRect(x + tx, ty, 14, 14);
+    // Top-left highlight
+    ctx.fillStyle = "#425f8a";
+    ctx.fillRect(x + tx, ty, 14, 1);
+    ctx.fillRect(x + tx, ty, 1, 14);
+    // Bottom-right shadow
+    ctx.fillStyle = "#263852";
+    ctx.fillRect(x + tx, ty + 13, 14, 1);
+    ctx.fillRect(x + tx + 13, ty, 1, 14);
+    // Tiny corner rivet
+    ctx.fillStyle = "#4e6e9e";
+    ctx.fillRect(x + tx + 2, ty + 2, 1, 1);
+    ctx.fillRect(x + tx + 11, ty + 11, 1, 1);
+  }
+  speckle(x, 0, ["#395378", "#304666"], 18);
 }
 
-// Tile 4: cafeteria floor — warm, so the spawn room reads differently
+// Tile 4: cafeteria floor — warm spacecraft canteen deck tiles
 {
   const x = TS * 4;
-  ctx.fillStyle = "#7a6238";
+  ctx.fillStyle = "#4a453b";
   ctx.fillRect(x, 0, TS, TS);
-  ctx.fillStyle = "#8f7443";
-  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 14);
-  ctx.fillStyle = "#a3854d";
-  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) ctx.fillRect(x + tx, ty, 14, 1);
-  speckle(x, 0, ["#977b48", "#84693c"], 30);
+
+  for (const [tx, ty] of [[1, 1], [17, 1], [1, 17], [17, 17]]) {
+    ctx.fillStyle = "#5c5548";
+    ctx.fillRect(x + tx, ty, 14, 14);
+    ctx.fillStyle = "#6e6657";
+    ctx.fillRect(x + tx, ty, 14, 1);
+    ctx.fillRect(x + tx, ty, 1, 14);
+    ctx.fillStyle = "#3d3830";
+    ctx.fillRect(x + tx, ty + 13, 14, 1);
+    ctx.fillRect(x + tx + 13, ty, 1, 14);
+    // Subtle inner diamond/square accent
+    ctx.fillStyle = "#635c4e";
+    ctx.fillRect(x + tx + 4, ty + 4, 6, 6);
+  }
+  speckle(x, 0, ["#665e50", "#524c40"], 18);
 }
 
 const tilesetPath = resolve(__dirname, "../../client/public/assets/tileset.png");

@@ -12,13 +12,14 @@ import { errorHandler, notFound } from "./middleware/error.js";
 export function createApp(): express.Application {
   const app = express();
 
+  app.set("trust proxy", 1);
   app.use(express.json());
   app.use(cookieParser());
 
   // CORS: dev'de Vite (5173) → API (3000)
   app.use(
     cors({
-      origin: env.isProd ? false : ["http://localhost:5173", "http://localhost:3000"],
+      origin: env.isProd ? true : ["http://localhost:5173", "http://localhost:3000"],
       credentials: true,
     })
   );

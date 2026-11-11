@@ -20,6 +20,14 @@ export function registerLobbyHandlers(
       socket.emit(LOBBY_EVENTS.ERROR, { code: "validation_error", message: "Invalid input" });
       return;
     }
+    const existing = mgr.getLobbyByUser(user.userId);
+    if (existing) {
+      const prev = mgr.leaveLobby(user.userId);
+      socket.leave(existing.code);
+      if (prev.lobby) {
+        io.to(prev.lobby.code).emit(LOBBY_EVENTS.UPDATED, mgr.toLobbyState(prev.lobby));
+      }
+    }
     const result = await mgr.createLobby(
       { userId: user.userId, username: user.username, socketId: socket.id },
       parsed.data.password
@@ -37,6 +45,27 @@ export function registerLobbyHandlers(
     if (!parsed.success) {
       socket.emit(LOBBY_EVENTS.ERROR, { code: "validation_error", message: "Invalid lobby code" });
       return;
+    }
+    const existing = mgr.getLobbyByUser(user.userId);
+    if (existing) {
+      if (existing.code !== parsed.data.code) {
+        const prev = mgr.leaveLobby(user.userId);
+        socket.leave(existing.code);
+        if (prev.lobby) {
+          io.to(prev.lobby.code).emit(LOBBY_EVENTS.UPDATED, mgr.toLobbyState(prev.lobby));
+        }
+      } else {
+        const existingPlayer = existing.players.find((p) => p.userId === user.userId);
+        const oldSocketConnected = existingPlayer
+          ? io.sockets.sockets.get(existingPlayer.socketId)?.connected
+          : false;
+        if (existingPlayer && (!oldSocketConnected || existingPlayer.socketId === socket.id)) {
+          existingPlayer.socketId = socket.id;
+          socket.join(existing.code);
+          socket.emit(LOBBY_EVENTS.STATE, mgr.toLobbyState(existing));
+          return;
+        }
+      }
     }
     const result = await mgr.joinLobby(
       parsed.data.code,

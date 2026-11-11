@@ -179,6 +179,17 @@ export class LobbyManager {
     return { lobby };
   }
 
+  /** Reset a lobby back to LOBBY state after a match ends so players can rematch. */
+  resetLobby(code: string): Lobby | undefined {
+    const lobby = this.lobbies.get(code);
+    if (!lobby) return undefined;
+    lobby.status = "LOBBY";
+    for (const p of lobby.players) {
+      p.isReady = false;
+    }
+    return lobby;
+  }
+
   getLobbyByCode(code: string): Lobby | undefined {
     return this.lobbies.get(code);
   }

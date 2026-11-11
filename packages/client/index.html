@@ -11,9 +11,10 @@
       #game-container canvas { display: block; }
       .role-badge {
         position: fixed; top: 12px; right: 12px;
-        background: rgba(0,0,0,0.7); color: #fff;
+        background: rgba(0,0,0,0.75); color: #fff;
         padding: 8px 16px; border-radius: 8px;
         font-weight: bold; z-index: 100;
+        border: 1px solid rgba(255,255,255,0.2);
       }
     </style>
   </head>
@@ -22,6 +23,7 @@
       <section id="login-screen" class="screen">
         <div class="card">
           <h1>🚀 AMONG US</h1>
+          <p class="subtitle">Arkadaşlarınla Uzayda Kimlik Avı</p>
           <input id="login-username" type="text" placeholder="Kullanıcı adı" maxlength="20" />
           <input id="login-password" type="password" placeholder="Şifre" />
           <div class="button-row">
@@ -40,18 +42,18 @@
           </div>
           <div class="menu-actions">
             <div class="action-box">
-              <h3>ODA OLUŞTUR</h3>
+              <h3>🛸 ODA OLUŞTUR</h3>
               <input id="create-password" type="password" placeholder="Şifre (opsiyonel)" />
-              <button id="btn-create">Yeni Oda</button>
+              <button id="btn-create">Yeni Oda Kur</button>
             </div>
             <div class="action-box">
-              <h3>KOD İLE KATIL</h3>
+              <h3>🔑 KOD İLE KATIL</h3>
               <input id="join-code" type="text" placeholder="A4KQ9Z" maxlength="6" />
               <input id="join-password" type="password" placeholder="Şifre (opsiyonel)" />
-              <button id="btn-join">Katıl</button>
+              <button id="btn-join">Odaya Katıl</button>
             </div>
           </div>
-          <button id="btn-stats" class="secondary menu-stats">📊 İstatistikler</button>
+          <button id="btn-stats" class="secondary menu-stats">📊 İstatistikler & Liderlik</button>
           <p id="menu-error" class="error"></p>
         </div>
       </section>
@@ -60,17 +62,18 @@
         <div class="card lobby">
           <div class="lobby-header">
             <h2>Oda: <span id="lobby-code"></span></h2>
-            <button id="btn-copy-code" class="link">Kopyala</button>
+            <button id="btn-copy-code" class="link">📋 Kopyala</button>
           </div>
+          <p id="lobby-count" class="lobby-count">Oyuncular: 1/10 (Başlamak için en az 4 oyuncu)</p>
           <div id="players-list" class="players-list"></div>
           <div class="color-picker">
-            <h3>Renk:</h3>
+            <h3>Karakter Rengi Seç:</h3>
             <div id="color-buttons"></div>
           </div>
           <div class="lobby-actions">
-            <button id="btn-ready">Hazır Değil</button>
-            <button id="btn-leave" class="secondary">Çıkış</button>
-            <button id="btn-start" class="primary" hidden>BAŞLAT</button>
+            <button id="btn-ready">Hazır Ol</button>
+            <button id="btn-leave" class="secondary">Odadan Çık</button>
+            <button id="btn-start" class="primary" hidden>OYUNU BAŞLAT</button>
           </div>
           <p id="lobby-error" class="error"></p>
         </div>
@@ -80,12 +83,29 @@
         <div id="game-container"></div>
         <div class="role-badge" id="role-display"></div>
         <button id="sound-btn" class="sound-btn" title="Sesi aç/kapat">🔊</button>
+        <button id="map-btn" class="map-btn" title="Haritayı aç/kapat (M)">🗺️</button>
+
+        <div id="task-progress" class="task-progress" hidden>
+          <div class="task-progress-header">
+            <span>TOPLAM GÖREV İLERLEMESİ</span>
+            <span><span id="task-completed">0</span>/<span id="task-total">0</span></span>
+          </div>
+          <div class="task-bar-track">
+            <div id="task-bar-fill" class="task-bar-fill"></div>
+          </div>
+          <div id="task-list-items" class="task-list-items"></div>
+        </div>
+
         <div id="minigame-overlay" class="minigame-overlay" hidden>
           <div class="minigame-card">
-            <h3 id="minigame-title"></h3>
+            <div class="minigame-header">
+              <h3 id="minigame-title"></h3>
+              <button id="minigame-close" class="link">✕ Kapat</button>
+            </div>
             <div id="minigame-content"></div>
           </div>
         </div>
+
         <div id="monitor-panel" class="monitor-panel" hidden>
           <div class="monitor-header">
             <h3 id="monitor-title">MONİTÖR</h3>
@@ -93,40 +113,80 @@
           </div>
           <div id="monitor-content" class="monitor-content"></div>
         </div>
-        <div id="task-progress" class="task-progress" hidden>
-          Görevler: <span id="task-completed">0</span>/<span id="task-total">0</span>
+
+        <div id="map-overlay" class="map-overlay" hidden>
+          <div class="map-card">
+            <div class="monitor-header">
+              <h3>🗺️ GEMİ HARİTASI (M)</h3>
+              <button id="map-close" class="link">✕ Kapat</button>
+            </div>
+            <div id="map-canvas-wrap" class="map-canvas-wrap"></div>
+            <div class="map-legend">
+              <span>🟢 Sen</span>
+              <span>🟡 Görevlerin</span>
+              <span>🔴 Aktif Sabotaj</span>
+            </div>
+          </div>
         </div>
-        <button id="kill-btn" class="kill-btn" hidden>🔪</button>
-        <button id="report-btn" class="report-btn" hidden>📢</button>
-        <button id="sabotage-btn" class="sabotage-btn" hidden>⚡</button>
+
+        <div id="role-reveal" class="role-reveal" hidden>
+          <div class="role-reveal-card">
+            <div id="role-reveal-title" class="role-reveal-title"></div>
+            <p id="role-reveal-sub" class="role-reveal-sub"></p>
+            <div id="role-reveal-avatars" class="role-reveal-avatars"></div>
+          </div>
+        </div>
+
+        <button id="kill-btn" class="kill-btn" title="Öldür (Q)" hidden>🔪</button>
+        <button id="report-btn" class="report-btn" title="Cesedi Raporla (R)" hidden>📢</button>
+        <button id="sabotage-btn" class="sabotage-btn" title="Sabotaj Başlat" hidden>⚡</button>
         <div id="sabotage-menu" class="sabotage-menu" hidden>
-          <button data-sab="lights">💡 Lights</button>
-          <button data-sab="comms">📡 Comms</button>
-          <button data-sab="reactor">☢️ Reactor</button>
-          <button data-sab="o2">🫧 O2</button>
+          <button data-sab="lights">💡 Işıkları Kes (Elektrik)</button>
+          <button data-sab="comms">📡 İletişimi Kes (Yönetim)</button>
+          <button data-sab="reactor">☢️ Reaktör Erimesi (35s)</button>
+          <button data-sab="o2">🫧 O2 Tüketimi (35s)</button>
         </div>
         <div id="vent-menu" class="vent-menu" hidden>
-          <h3>VENT SEÇ</h3>
+          <h3>🕳️ HAVALANDIRMA AĞI</h3>
           <div id="vent-list"></div>
-          <button id="vent-exit-btn">Çık</button>
+          <button id="vent-exit-btn" class="secondary">Vent'ten Çık</button>
         </div>
         <div id="sabotage-alert" class="sabotage-alert" hidden></div>
         <div id="interact-prompt" class="interact-prompt" hidden>E bas</div>
+
         <div id="game-over" class="game-over" hidden>
           <h1 id="winner-text"></h1>
-          <button id="back-to-lobby">Lobiye Dön</button>
+          <div id="winner-players" class="winner-players"></div>
+          <div class="game-over-actions">
+            <button id="back-to-lobby" class="primary">🔄 Lobiye Dön (Tekrar Oyna)</button>
+          </div>
         </div>
       </section>
 
       <section id="meeting-screen" class="screen meeting" hidden>
         <div class="meeting-card">
-          <h2 id="meeting-title">📢 MEETING</h2>
-          <p id="meeting-timer">⏱️ 90 saniye</p>
-          <div id="meeting-chat" class="meeting-chat"></div>
-          <div id="vote-buttons" class="vote-buttons"></div>
-          <div class="chat-input-row">
-            <input id="chat-input" type="text" placeholder="Mesaj yaz..." maxlength="200" />
-            <button id="chat-send">Gönder</button>
+          <div class="meeting-top">
+            <h2 id="meeting-title">📢 ACİL TOPLANTI</h2>
+            <p id="meeting-timer">⏱️ 90 saniye</p>
+          </div>
+          <div class="meeting-body">
+            <div class="meeting-left">
+              <h3>Oyuncular & Oylama</h3>
+              <div id="vote-buttons" class="vote-buttons"></div>
+            </div>
+            <div class="meeting-right">
+              <h3>Toplantı Sohbeti</h3>
+              <div id="meeting-chat" class="meeting-chat"></div>
+              <div class="chat-input-row">
+                <input id="chat-input" type="text" placeholder="Mesaj yaz..." maxlength="200" />
+                <button id="chat-send">Gönder</button>
+              </div>
+            </div>
+          </div>
+          <div id="ejection-overlay" class="ejection-overlay" hidden>
+            <div id="ejection-avatar" class="ejection-avatar"></div>
+            <h2 id="ejection-text" class="ejection-text"></h2>
+            <p id="ejection-sub" class="ejection-sub"></p>
           </div>
         </div>
       </section>

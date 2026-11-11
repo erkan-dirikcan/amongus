@@ -21,7 +21,10 @@ export function getSocket(): Socket {
 /** Open the socket once the auth cookie is in place (after login / on resume). */
 export function connectSocket(): void {
   const s = getSocket();
-  if (!s.connected) s.connect();
+  if (s.connected) {
+    s.disconnect();
+  }
+  s.connect();
 }
 
 /** Close the socket on logout; the instance and its handlers are kept. */

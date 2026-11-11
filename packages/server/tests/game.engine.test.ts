@@ -204,4 +204,29 @@ describe("GameEngine", () => {
       expect(engine.expireDisconnected("m1", t0 + GameEngine.DISCONNECT_GRACE_MS).abandoned).toBe(true);
     });
   });
+
+  describe("ghost movement & meeting votes", () => {
+    it("allows dead players (ghosts) to move through internal walls", () => {
+      engine.createMatch("m1", "ABC234", players);
+      const p = engine.getMatch("m1")!.players.get("u1")!;
+      p.isAlive = false;
+      p.x = 18; // wall tile outside cafeteria
+      p.y = 25;
+
+      engine.setInput("m1", "u1", -1, 0, 1);
+      engine.tick("m1");
+
+      expect(p.x).toBeLessThan(18);
+    });
+
+    it("returns full vote breakdown in endMeeting", () => {
+      engine.createMatch("m1", "ABC234", players);
+      engine.startMeeting("m1", "emergency", "u1");
+      engine.vote("m1", "u1", "u2");
+      engine.vote("m1", "u3", "skip");
+
+      const res = engine.endMeeting("m1")!;
+      expect(res.votes).toEqual({ u1: "u2", u3: "skip" });
+    });
+  });
 });

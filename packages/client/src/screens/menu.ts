@@ -29,6 +29,9 @@ export function initMenuScreen(): void {
     const password = (document.getElementById("create-password") as HTMLInputElement).value || undefined;
     errorEl.textContent = "";
     const socket = getSocket();
+    if (!socket.connected) {
+      socket.connect();
+    }
     socket.emit("lobby:create", { password });
   });
 
@@ -39,8 +42,15 @@ export function initMenuScreen(): void {
       errorEl.textContent = "Oda kodu gerekli";
       return;
     }
+    if (code.length !== 6) {
+      errorEl.textContent = "Oda kodu 6 karakter olmalıdır";
+      return;
+    }
     errorEl.textContent = "";
     const socket = getSocket();
+    if (!socket.connected) {
+      socket.connect();
+    }
     socket.emit("lobby:join", { code, password });
   });
 }

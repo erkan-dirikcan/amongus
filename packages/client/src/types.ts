@@ -37,6 +37,8 @@ export interface GameStartedPayload {
   role: PlayerRole;
   players: GameStartedPlayer[];
   spawn: { x: number; y: number };
+  /** Only populated for Impostor players so they know their teammate(s). */
+  impostorIds?: string[];
   /** Set client-side by the game screen so GameScene can identify the local player synchronously. */
   myUserId?: string;
 }
@@ -47,6 +49,7 @@ export interface TickPlayer {
   y: number;
   facing: string;
   isAlive: boolean;
+  inVent?: boolean;
 }
 
 export interface GameTickPayload {
@@ -75,5 +78,13 @@ export interface MeetingPlayerInfo {
   userId: string;
   username: string;
   color: string;
+  isAlive: boolean;
+}
+
+export interface GameEndedPlayer {
+  userId: string;
+  username: string;
+  color: string;
+  role: PlayerRole;
   isAlive: boolean;
 }

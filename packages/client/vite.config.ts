@@ -4,11 +4,20 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
       "/socket.io": {
         target: "http://localhost:3000",
         changeOrigin: true,
         ws: true,
+        configure: (proxy) => {
+          proxy.on("error", () => {});
+          proxy.on("proxyReqWs", (_proxyReq, _req, socket) => {
+            socket.on("error", () => {});
+          });
+        },
       },
     },
   },

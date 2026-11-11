@@ -1,6 +1,7 @@
 import type { ExtendedIo, ExtendedSocket } from "./types.js";
 import type { GameEngine } from "../game/engine.js";
-import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS, VENT_SABOTAGE_EVENTS, MONITOR_EVENTS, MONITOR_TYPES } from "@amongus/shared";
+import type { LobbyManager } from "../lobby/manager.js";
+import { TASK_EVENTS, GAME_EVENTS, MEETING_EVENTS, VENT_SABOTAGE_EVENTS, MONITOR_EVENTS, MONITOR_TYPES, LOBBY_EVENTS } from "@amongus/shared";
 import type { MonitorType } from "@amongus/shared";
 import { prisma } from "../db/prisma.js";
 import { getMonitorSnapshot, roomAt } from "../game/monitors.js";
@@ -8,7 +9,8 @@ import { getMonitorSnapshot, roomAt } from "../game/monitors.js";
 export function registerGameHandlers(
   io: ExtendedIo,
   socket: ExtendedSocket,
-  engine: GameEngine
+  engine: GameEngine,
+  lobbyManager?: LobbyManager
 ): void {
   const user = socket.data.user;
 
@@ -51,7 +53,7 @@ export function registerGameHandlers(
       io.to(match.code).emit(TASK_EVENTS.TASK_UPDATE, { ...result.taskProgress!, taskId });
       const winner = engine.checkWin(match.matchId);
       if (winner) {
-        handleGameEnd(io, engine, match.matchId, winner);
+        handleGameEnd(io, engine, match.matchId, winner, lobbyManager);
       }
     } else {
       socket.emit(TASK_EVENTS.TASK_UPDATE, engine.getMatch(match.matchId)!.taskProgress);
@@ -74,7 +76,7 @@ export function registerGameHandlers(
       socket.emit(TASK_EVENTS.KILL_RESULT, { success: true, cooldownUntil: result.cooldownUntil! });
       const winner = engine.checkWin(match.matchId);
       if (winner) {
-        handleGameEnd(io, engine, match.matchId, winner);
+        handleGameEnd(io, engine, match.matchId, winner, lobbyManager);
       }
     } else {
       socket.emit(TASK_EVENTS.KILL_RESULT, {
@@ -90,8 +92,12 @@ export function registerGameHandlers(
     const { corpseId } = payload as { corpseId: string };
     const match = engine.findMatchByUser(user.userId);
     if (!match) return;
+    const prevSabType = match.sabotage?.type;
     const result = engine.report(match.matchId, user.userId, corpseId);
     if (result.success && result.meetingStarted) {
+      if (prevSabType && !match.sabotage) {
+        io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_FIXED, { type: prevSabType });
+      }
       emitMeetingStarted(io, match.matchId, "report", user.userId);
     }
     socket.emit(TASK_EVENTS.REPORT_RESULT, result);
@@ -112,8 +118,12 @@ export function registerGameHandlers(
   socket.on(MEETING_EVENTS.EMERGENCY, () => {
     const match = engine.findMatchByUser(user.userId);
     if (!match || !engine.canUseEmergency(match.matchId, user.userId)) return;
+    const prevSabType = match.sabotage?.type;
     engine.useEmergency(match.matchId, user.userId);
     engine.startMeeting(match.matchId, "emergency", user.userId);
+    if (prevSabType && !match.sabotage) {
+      io.to(match.code).emit(VENT_SABOTAGE_EVENTS.SABOTAGE_FIXED, { type: prevSabType });
+    }
     emitMeetingStarted(io, match.matchId, "emergency", user.userId);
   });
 
@@ -124,12 +134,29 @@ export function registerGameHandlers(
     const match = engine.findMatchByUser(user.userId);
     if (!match || !engine.isInMeeting(match.matchId)) return;
     const player = match.players.get(user.userId);
-    if (!player || !player.isAlive) return;
-    io.to(match.code).emit(MEETING_EVENTS.CHAT_MESSAGE, {
-      userId: user.userId,
-      username: player.username,
-      message,
-    });
+    if (!player) return;
+    if (player.isAlive) {
+      io.to(match.code).emit(MEETING_EVENTS.CHAT_MESSAGE, {
+        userId: user.userId,
+        username: player.username,
+        color: player.color,
+        isGhost: false,
+        message,
+      });
+    } else {
+      // Ghost chat: only dead players receive it
+      for (const p of match.players.values()) {
+        if (!p.isAlive && p.socketId) {
+          io.to(p.socketId).emit(MEETING_EVENTS.CHAT_MESSAGE, {
+            userId: user.userId,
+            username: player.username,
+            color: player.color,
+            isGhost: true,
+            message,
+          });
+        }
+      }
+    }
   });
 
   socket.on(VENT_SABOTAGE_EVENTS.VENT_ENTER, (payload: unknown) => {
@@ -296,6 +323,11 @@ export function sendGameState(io: ExtendedIo, engine: GameEngine, matchId: strin
     to.emit(TASK_EVENTS.TASKS_ASSIGNED, { tasks: playerTasks, total: match.taskProgress.total });
   }
 
+  const impostorIds =
+    player.role === "IMPOSTOR"
+      ? [...match.players.values()].filter((gp) => gp.role === "IMPOSTOR").map((gp) => gp.userId)
+      : undefined;
+
   to.emit(GAME_EVENTS.STARTED, {
     matchId,
     role: player.role,
@@ -303,6 +335,7 @@ export function sendGameState(io: ExtendedIo, engine: GameEngine, matchId: strin
     spawn: { x: player.x, y: player.y },
     corpses: match.corpses.map((c) => ({ corpseId: c.id, x: c.x, y: c.y, color: c.victimColor })),
     isAlive: player.isAlive,
+    impostorIds,
   });
   to.emit(TASK_EVENTS.TASK_UPDATE, match.taskProgress);
   if (match.sabotage) {
@@ -322,7 +355,13 @@ export function sendGameState(io: ExtendedIo, engine: GameEngine, matchId: strin
   }
 }
 
-export async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId: string, winner: "CREW" | "IMPOSTOR"): Promise<void> {
+export async function handleGameEnd(
+  io: ExtendedIo,
+  engine: GameEngine,
+  matchId: string,
+  winner: "CREW" | "IMPOSTOR",
+  lobbyManager?: LobbyManager
+): Promise<void> {
   const match = engine.getMatch(matchId);
   if (!match) return;
   match.status = "ENDED";
@@ -360,6 +399,22 @@ export async function handleGameEnd(io: ExtendedIo, engine: GameEngine, matchId:
     // Non-fatal — game still ends, just stats may be incomplete
   }
 
-  io.to(match.code).emit(GAME_EVENTS.ENDED, { winner });
+  // Reset the lobby so players can return to it for a rematch
+  if (lobbyManager) {
+    const lobby = lobbyManager.resetLobby(match.code);
+    if (lobby) {
+      io.to(lobby.code).emit(LOBBY_EVENTS.UPDATED, lobbyManager.toLobbyState(lobby));
+    }
+  }
+
+  const endPlayers = [...match.players.values()].map((p) => ({
+    userId: p.userId,
+    username: p.username,
+    color: p.color,
+    role: p.role,
+    isAlive: p.isAlive,
+  }));
+
+  io.to(match.code).emit(GAME_EVENTS.ENDED, { winner, players: endPlayers });
   engine.removeMatch(matchId);
 }

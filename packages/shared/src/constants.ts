@@ -76,9 +76,28 @@ export const EMERGENCY_BUTTON_TILE = { x: 25, y: 25 }; // cafeteria center
 // ─── Vent & Sabotage constants ─────────────────────────────────────────
 
 export const SABOTAGE_COOLDOWN_MS = 30000;
-export const REACTOR_TIMEOUT_MS = 30000;
-export const O2_TIMEOUT_MS = 30000;
+export const REACTOR_TIMEOUT_MS = 35000;
+export const O2_TIMEOUT_MS = 35000;
 export const VENT_INTERACT_DISTANCE = 1.5;
+export const SABOTAGE_INTERACT_DISTANCE = 1.8;
+
+export interface SabotageLocation {
+  id: string;
+  type: "lights" | "comms" | "reactor" | "o2";
+  room: string;
+  label: string;
+  x: number;
+  y: number;
+}
+
+/** Interactable sabotage repair panels on the map. */
+export const SABOTAGE_LOCATIONS: SabotageLocation[] = [
+  { id: "sab-lights", type: "lights", room: "electrical", label: "Elektrik Şalteri", x: 7, y: 32 },
+  { id: "sab-comms", type: "comms", room: "admin", label: "İletişim Radyosu", x: 27, y: 42 },
+  { id: "sab-reactor", type: "reactor", room: "reactor", label: "Reaktör El İzi", x: 8, y: 43 },
+  { id: "sab-o2-room", type: "o2", room: "o2", label: "O2 Filtresi", x: 38, y: 43 },
+  { id: "sab-o2-admin", type: "o2", room: "admin", label: "Admin O2 Paneli", x: 23, y: 42 },
+];
 
 // ─── Monitor constants (Sub-project 6) ─────────────────────────────────
 

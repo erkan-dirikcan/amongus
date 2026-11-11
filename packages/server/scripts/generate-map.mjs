@@ -88,11 +88,27 @@ corridorH(ground, 13, 22, 42); // reactor → admin
 corridorH(ground, 29, 35, 42); // admin → o2
 corridorV(ground, 36, 39, 40); // navigation → o2
 
-// Compute walls: any tile that's still WALL in ground = wall
+// Compute walls: server wallGrid marks every non-floor tile as solid;
+// client visual `walls` layer only draws hull bulkhead tiles adjacent (within 1 tile)
+// to a walkable floor tile so the outer void lets the space starfield show through.
+function hasNearbyFloor(r, c) {
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr >= 0 && nr < MAP_HEIGHT && nc >= 0 && nc < MAP_WIDTH) {
+        if (ground[nr][nc] !== TILE.WALL) return true;
+      }
+    }
+  }
+  return false;
+}
+
 for (let r = 0; r < MAP_HEIGHT; r++) {
   for (let c = 0; c < MAP_WIDTH; c++) {
-    walls[r][c] = ground[r][c] === TILE.WALL ? 1 : 0; // 1 = wall (boolean grid for server)
-    wallGrid[r][c] = ground[r][c] === TILE.WALL;
+    const isSolid = ground[r][c] === TILE.WALL;
+    wallGrid[r][c] = isSolid;
+    walls[r][c] = isSolid && hasNearbyFloor(r, c) ? 1 : 0;
   }
 }
 

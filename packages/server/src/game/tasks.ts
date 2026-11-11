@@ -45,18 +45,23 @@ function shuffled<T>(items: T[]): T[] {
  */
 export function createTasks(crewmates: { userId: string }[]): Map<string, Task> {
   const tasks = new Map<string, Task>();
+  const globalTypeCount = new Map<TaskType, number>();
 
   for (const crewmate of crewmates) {
-    const pool = shuffled(TASK_LOCATIONS);
+    // Shuffle locations, then sort by least-used globally so all 6 minigame types appear evenly
+    const pool = shuffled(TASK_LOCATIONS).sort(
+      (a, b) => (globalTypeCount.get(a.type) ?? 0) - (globalTypeCount.get(b.type) ?? 0)
+    );
     const typeCount = new Map<TaskType, number>();
     const picked: typeof pool = [];
 
-    // Pass 1: only unused types (with 6 types over 16 locations this always fills)
+    // Pass 1: only unused types for this player
     for (const loc of pool) {
       if (picked.length >= TASKS_PER_CREWMATE) break;
       if (typeCount.has(loc.type)) continue;
       picked.push(loc);
       typeCount.set(loc.type, 1);
+      globalTypeCount.set(loc.type, (globalTypeCount.get(loc.type) ?? 0) + 1);
     }
 
     // Pass 2 (fallback): allow repeats up to the cap
@@ -66,6 +71,7 @@ export function createTasks(crewmates: { userId: string }[]): Map<string, Task> 
       if (used >= MAX_SAME_TYPE_PER_PLAYER) continue;
       picked.push(loc);
       typeCount.set(loc.type, used + 1);
+      globalTypeCount.set(loc.type, (globalTypeCount.get(loc.type) ?? 0) + 1);
     }
 
     picked.forEach((loc, i) => {
